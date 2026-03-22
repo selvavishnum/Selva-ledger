@@ -1,0 +1,1235 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Selva Business Ledger</title>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #f0f4f8;
+  --white: #ffffff;
+  --card: #ffffff;
+  --border: #e2e8f0;
+  --text: #1a202c;
+  --muted: #718096;
+  --soft: #f7fafc;
+
+  --shop1: #16a34a; --shop1l: #dcfce7; --shop1d: #14532d;
+  --shop2: #2563eb; --shop2l: #dbeafe; --shop2d: #1e3a8a;
+  --shop3: #d97706; --shop3l: #fef3c7; --shop3d: #78350f;
+  --shop4: #9333ea; --shop4l: #f3e8ff; --shop4d: #581c87;
+
+  --green: #16a34a; --greenl: #dcfce7;
+  --red: #dc2626; --redl: #fee2e2;
+  --yellow: #d97706; --yellowl: #fef3c7;
+  --blue: #2563eb; --bluel: #dbeafe;
+
+  --mono: 'JetBrains Mono', monospace;
+  --sans: 'Outfit', sans-serif;
+  --radius: 14px;
+  --shadow: 0 2px 12px rgba(0,0,0,0.08);
+  --shadow-lg: 0 8px 32px rgba(0,0,0,0.12);
+}
+
+* { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+html { font-size: 15px; }
+body { background:var(--bg); color:var(--text); font-family:var(--sans); min-height:100vh; padding-bottom:90px; }
+
+/* ── TOPBAR ── */
+.topbar {
+  background:var(--white);
+  border-bottom:1px solid var(--border);
+  padding:14px 16px;
+  display:flex; align-items:center; gap:12px;
+  position:sticky; top:0; z-index:100;
+  box-shadow: 0 1px 8px rgba(0,0,0,0.06);
+}
+.topbar-logo { width:36px; height:36px; border-radius:10px; background:linear-gradient(135deg,#16a34a,#15803d); display:flex; align-items:center; justify-content:center; font-size:18px; flex-shrink:0; }
+.topbar-title { font-weight:700; font-size:16px; line-height:1.2; }
+.topbar-sub { font-size:11px; color:var(--muted); font-family:var(--mono); }
+.topbar-date { margin-left:auto; font-family:var(--mono); font-size:11px; color:var(--muted); text-align:right; }
+
+/* ── SHOP SELECTOR ── */
+.shop-strip {
+  display:flex; gap:8px; padding:12px 16px;
+  overflow-x:auto; background:var(--white);
+  border-bottom:1px solid var(--border);
+  scrollbar-width:none;
+}
+.shop-strip::-webkit-scrollbar { display:none; }
+.shop-chip {
+  flex-shrink:0; padding:7px 14px; border-radius:20px;
+  font-size:12px; font-weight:600; cursor:pointer; border:2px solid transparent;
+  transition:all .2s; white-space:nowrap;
+  background:var(--soft); color:var(--muted);
+}
+.shop-chip.all.on { background:#1a202c; color:#fff; border-color:#1a202c; }
+.shop-chip.s1.on { background:var(--shop1l); color:var(--shop1d); border-color:var(--shop1); }
+.shop-chip.s2.on { background:var(--shop2l); color:var(--shop2d); border-color:var(--shop2); }
+.shop-chip.s3.on { background:var(--shop3l); color:var(--shop3d); border-color:var(--shop3); }
+.shop-chip.s4.on { background:var(--shop4l); color:var(--shop4d); border-color:var(--shop4); }
+
+/* ── BOTTOM NAV ── */
+.bnav {
+  position:fixed; bottom:0; left:0; right:0;
+  background:var(--white); border-top:1px solid var(--border);
+  display:flex; z-index:100;
+  box-shadow: 0 -2px 12px rgba(0,0,0,0.06);
+}
+.bnav-btn {
+  flex:1; padding:10px 4px 12px; border:none; background:transparent;
+  display:flex; flex-direction:column; align-items:center; gap:3px;
+  cursor:pointer; font-family:var(--sans); transition:all .15s;
+}
+.bnav-btn .icon { font-size:20px; }
+.bnav-btn .lbl { font-size:10px; color:var(--muted); font-weight:500; }
+.bnav-btn.on .lbl { color:var(--green); font-weight:700; }
+.bnav-btn.on .icon { transform:scale(1.1); }
+
+/* ── PANES ── */
+.pane { display:none; padding:16px; }
+.pane.on { display:block; }
+
+/* ── CARDS ── */
+.card { background:var(--white); border-radius:var(--radius); padding:16px; margin-bottom:12px; box-shadow:var(--shadow); border:1px solid var(--border); }
+.card-hd { font-size:12px; font-weight:600; color:var(--muted); letter-spacing:1px; text-transform:uppercase; margin-bottom:12px; display:flex; align-items:center; gap:6px; }
+.card-hd::after { content:''; flex:1; height:1px; background:var(--border); }
+
+/* ── STAT GRID ── */
+.stat-grid { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:12px; }
+.stat-tile { background:var(--soft); border:1px solid var(--border); border-radius:12px; padding:12px; }
+.stat-lbl { font-size:10px; color:var(--muted); font-weight:600; letter-spacing:.8px; text-transform:uppercase; margin-bottom:4px; }
+.stat-val { font-size:22px; font-weight:800; font-family:var(--sans); }
+.stat-val.g { color:var(--green); }
+.stat-val.r { color:var(--red); }
+.stat-val.y { color:var(--yellow); }
+.stat-val.b { color:var(--blue); }
+
+/* ── STATUS PILL ── */
+.status-pill { border-radius:10px; padding:10px 14px; font-size:12px; font-weight:600; display:flex; align-items:center; gap:8px; margin-bottom:12px; }
+.status-pill.ok { background:var(--greenl); color:var(--green); border:1px solid #86efac; }
+.status-pill.warn { background:var(--yellowl); color:var(--yellow); border:1px solid #fcd34d; }
+.status-pill.bad { background:var(--redl); color:var(--red); border:1px solid #fca5a5; }
+.sp-dot { width:7px; height:7px; border-radius:50%; background:currentColor; animation:pulse 1.6s infinite; }
+@keyframes pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.3;transform:scale(.6)} }
+
+/* ── SHOP SUMMARY CARDS ── */
+.shop-cards { display:flex; flex-direction:column; gap:10px; }
+.shop-card { border-radius:12px; padding:14px; border:1px solid transparent; }
+.shop-card.s1 { background:var(--shop1l); border-color:#86efac; }
+.shop-card.s2 { background:var(--shop2l); border-color:#93c5fd; }
+.shop-card.s3 { background:var(--shop3l); border-color:#fcd34d; }
+.shop-card.s4 { background:var(--shop4l); border-color:#d8b4fe; }
+.sc-top { display:flex; align-items:center; justify-content:space-between; margin-bottom:8px; }
+.sc-name { font-weight:700; font-size:14px; }
+.sc-badge { font-size:10px; font-weight:600; padding:3px 8px; border-radius:20px; background:rgba(255,255,255,.7); }
+.sc-nums { display:flex; gap:12px; }
+.sc-num { font-family:var(--mono); font-size:12px; }
+
+/* ── UPLOAD ZONE ── */
+.upload-zone {
+  border:2px dashed var(--border); border-radius:12px;
+  padding:32px 16px; text-align:center; cursor:pointer;
+  transition:all .2s; background:var(--soft); position:relative;
+}
+.upload-zone:hover, .upload-zone.drag { border-color:var(--green); background:var(--greenl); }
+.upload-zone input { position:absolute; inset:0; opacity:0; cursor:pointer; width:100%; height:100%; }
+.uz-icon { font-size:36px; margin-bottom:8px; }
+.uz-title { font-weight:700; font-size:15px; color:var(--green); margin-bottom:4px; }
+.uz-sub { font-size:12px; color:var(--muted); }
+
+/* ── BUTTONS ── */
+.btn { display:flex; align-items:center; justify-content:center; gap:8px; border:none; border-radius:10px; padding:13px 18px; font-family:var(--sans); font-size:14px; font-weight:600; cursor:pointer; width:100%; transition:all .2s; }
+.btn:active { transform:scale(.97); }
+.btn:disabled { opacity:.4; cursor:not-allowed; }
+.btn.primary { background:var(--green); color:#fff; margin-top:10px; }
+.btn.secondary { background:var(--soft); color:var(--text); border:1px solid var(--border); margin-top:8px; }
+.btn.danger { background:var(--red); color:#fff; margin-top:8px; }
+.btn.sm { padding:8px 14px; font-size:12px; width:auto; margin-top:0; }
+.btn.blue { background:var(--blue); color:#fff; margin-top:10px; }
+
+/* ── FORM ── */
+.form-row { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:10px; }
+.form-row.full { grid-template-columns:1fr; }
+.fg { display:flex; flex-direction:column; gap:5px; }
+label { font-size:11px; font-weight:600; color:var(--muted); letter-spacing:.5px; text-transform:uppercase; }
+input, select, textarea {
+  background:var(--soft); border:1.5px solid var(--border);
+  border-radius:8px; padding:10px 12px;
+  font-family:var(--sans); font-size:14px; color:var(--text);
+  width:100%; transition:border-color .2s;
+}
+input:focus, select:focus, textarea:focus { outline:none; border-color:var(--green); }
+textarea { resize:vertical; min-height:60px; }
+
+/* ── STEP BAR ── */
+.steps { display:flex; align-items:center; margin-bottom:16px; }
+.step { display:flex; align-items:center; gap:6px; flex:1; }
+.step-dot { width:26px; height:26px; border-radius:50%; border:2px solid var(--border); display:flex; align-items:center; justify-content:center; font-size:11px; font-weight:700; color:var(--muted); flex-shrink:0; transition:all .3s; }
+.step.done .step-dot { background:var(--green); border-color:var(--green); color:#fff; }
+.step.active .step-dot { border-color:var(--green); color:var(--green); }
+.step-line { flex:1; height:2px; background:var(--border); margin:0 4px; }
+.step.done .step-line { background:var(--green); }
+.step-lbl { font-size:10px; color:var(--muted); font-weight:600; display:none; }
+@media(min-width:400px){ .step-lbl { display:block; } }
+
+/* ── SCAN ANIM ── */
+.scan-card { text-align:center; padding:32px 20px; }
+.spinner { width:44px; height:44px; border:3px solid var(--border); border-top-color:var(--green); border-radius:50%; animation:spin .7s linear infinite; margin:0 auto 16px; }
+@keyframes spin { to { transform:rotate(360deg); } }
+.scan-title { font-size:18px; font-weight:700; color:var(--green); margin-bottom:6px; }
+.scan-sub { font-size:12px; color:var(--muted); font-family:var(--mono); }
+.progress-wrap { background:var(--border); border-radius:10px; height:6px; margin:16px 0 8px; overflow:hidden; }
+.progress-bar { height:100%; width:0%; background:linear-gradient(90deg,var(--green),#86efac); border-radius:10px; transition:width .3s; }
+.progress-pct { font-family:var(--mono); font-size:12px; color:var(--muted); }
+
+/* ── ENTRIES ── */
+.entries-list { display:flex; flex-direction:column; gap:8px; }
+.entry-card { background:var(--soft); border:1.5px solid var(--border); border-radius:10px; padding:12px; transition:border-color .2s; }
+.entry-card.doubt { border-color:var(--yellow); background:var(--yellowl); }
+.entry-card.resolved { border-color:#86efac; background:var(--greenl); }
+.entry-top { display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-bottom:4px; }
+.entry-num { font-family:var(--mono); font-size:10px; background:var(--border); padding:2px 6px; border-radius:4px; color:var(--muted); }
+.type-badge { font-size:10px; font-weight:700; padding:3px 8px; border-radius:20px; }
+.type-badge.sales { background:var(--greenl); color:var(--green); }
+.type-badge.expense { background:var(--redl); color:var(--red); }
+.type-badge.payment { background:var(--yellowl); color:var(--yellow); }
+.type-badge.unknown { background:var(--border); color:var(--muted); }
+.entry-desc { font-size:13px; font-weight:500; color:var(--text); flex:1; }
+.entry-amt { font-family:var(--mono); font-size:15px; font-weight:700; margin-left:auto; }
+.entry-amt.pos { color:var(--green); }
+.entry-amt.neg { color:var(--red); }
+.entry-amt.unk { color:var(--yellow); }
+
+/* doubt box */
+.doubt-box { background:rgba(255,255,255,.7); border:1px solid #fcd34d; border-radius:8px; padding:10px; margin-top:8px; }
+.doubt-q { font-size:12px; font-weight:600; color:var(--yellow); margin-bottom:8px; }
+.doubt-row { display:flex; gap:6px; }
+.doubt-input { flex:1; background:var(--white); border:1.5px solid var(--border); border-radius:8px; padding:8px 10px; font-size:13px; font-family:var(--sans); }
+.doubt-input:focus { outline:none; border-color:var(--green); }
+
+/* ── CONFIRM BOX ── */
+.confirm-box { background:var(--greenl); border:1px solid #86efac; border-radius:12px; padding:14px; margin-top:10px; }
+.confirm-row { display:flex; justify-content:space-between; padding:5px 0; font-size:13px; border-bottom:1px solid #86efac; }
+.confirm-row:last-child { border:none; font-weight:700; font-size:14px; padding-top:10px; margin-top:4px; }
+
+/* ── LEDGER TABLE ── */
+.ltable-wrap { overflow-x:auto; -webkit-overflow-scrolling:touch; }
+.ltable { width:100%; border-collapse:collapse; font-size:12px; }
+.ltable th { padding:8px 10px; text-align:left; font-size:10px; font-weight:600; color:var(--muted); letter-spacing:.8px; text-transform:uppercase; border-bottom:2px solid var(--border); white-space:nowrap; }
+.ltable td { padding:10px; border-bottom:1px solid var(--border); vertical-align:middle; }
+.ltable tr:last-child td { border:none; }
+.ltable tr:hover td { background:var(--soft); }
+
+/* ── SUPPLIER LIST ── */
+.sup-item { display:flex; align-items:center; justify-content:space-between; padding:12px 0; border-bottom:1px solid var(--border); }
+.sup-item:last-child { border:none; }
+.sup-name { font-weight:600; font-size:14px; }
+.sup-shop { font-size:11px; color:var(--muted); }
+.risk-badge { font-size:10px; font-weight:700; padding:3px 8px; border-radius:20px; margin-right:8px; }
+.risk-badge.clear { background:var(--greenl); color:var(--green); }
+.risk-badge.medium { background:var(--yellowl); color:var(--yellow); }
+.risk-badge.high { background:#fed7aa; color:#c2410c; }
+.risk-badge.critical { background:var(--redl); color:var(--red); }
+.sup-bal { font-family:var(--mono); font-size:14px; font-weight:700; }
+
+/* ── MONTHLY REPORT ── */
+.month-tabs { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:12px; }
+.month-chip { padding:6px 12px; border-radius:20px; font-size:12px; font-weight:600; cursor:pointer; border:1.5px solid var(--border); background:var(--soft); color:var(--muted); transition:all .2s; }
+.month-chip.on { background:var(--green); color:#fff; border-color:var(--green); }
+
+.pl-table { width:100%; border-collapse:collapse; font-size:13px; }
+.pl-table th { padding:8px; text-align:left; font-size:11px; color:var(--muted); border-bottom:2px solid var(--border); }
+.pl-table td { padding:8px; border-bottom:1px solid var(--border); }
+.pl-table tr:last-child td { border:none; font-weight:700; }
+
+/* ── SETTINGS ── */
+.setting-row { display:flex; align-items:center; justify-content:space-between; padding:14px 0; border-bottom:1px solid var(--border); }
+.setting-row:last-child { border:none; }
+.setting-lbl { font-weight:600; font-size:14px; }
+.setting-sub { font-size:11px; color:var(--muted); margin-top:2px; }
+.setting-val { font-family:var(--mono); font-size:11px; color:var(--muted); max-width:120px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+
+/* ── SHEET SYNC STATUS ── */
+.sync-badge { display:inline-flex; align-items:center; gap:4px; font-size:11px; font-weight:600; padding:3px 8px; border-radius:20px; }
+.sync-badge.ok { background:var(--greenl); color:var(--green); }
+.sync-badge.err { background:var(--redl); color:var(--red); }
+.sync-badge.syncing { background:var(--bluel); color:var(--blue); }
+
+/* ── PREVIEW IMG ── */
+.img-preview { width:100%; border-radius:10px; margin-top:10px; max-height:280px; object-fit:contain; background:#000; display:block; }
+
+/* ── ALERT ── */
+.alert { border-radius:10px; padding:10px 14px; font-size:12px; font-weight:500; margin-bottom:10px; }
+.alert.ok { background:var(--greenl); color:var(--green); border:1px solid #86efac; }
+.alert.warn { background:var(--yellowl); color:var(--yellow); border:1px solid #fcd34d; }
+.alert.bad { background:var(--redl); color:var(--red); border:1px solid #fca5a5; }
+.alert.info { background:var(--bluel); color:var(--blue); border:1px solid #93c5fd; }
+
+.empty { text-align:center; padding:32px; color:var(--muted); font-size:13px; }
+</style>
+</head>
+<body>
+
+<!-- TOPBAR -->
+<div class="topbar">
+  <div class="topbar-logo">🏪</div>
+  <div>
+    <div class="topbar-title">Selva Ledger</div>
+    <div class="topbar-sub">4 SHOPS · AI POWERED</div>
+  </div>
+  <div class="topbar-date" id="topdate"></div>
+</div>
+
+<!-- SHOP SELECTOR -->
+<div class="shop-strip">
+  <div class="shop-chip all on" onclick="selectShop('all',this)">🏠 All Shops</div>
+  <div class="shop-chip s1" onclick="selectShop('s1',this)">🥬 Veg Shop 1</div>
+  <div class="shop-chip s2" onclick="selectShop('s2',this)">🥦 Veg Shop 2</div>
+  <div class="shop-chip s3" onclick="selectShop('s3',this)">☕ Tea Shop</div>
+  <div class="shop-chip s4" onclick="selectShop('s4',this)">💍 Tulsi Bridal</div>
+</div>
+
+<!-- PANE: DASHBOARD -->
+<div class="pane on" id="pane-dash">
+
+  <div id="dash-status" class="status-pill ok">
+    <div class="sp-dot"></div>
+    <span id="dash-status-text">Loading...</span>
+    <span id="sync-status" class="sync-badge ok" style="margin-left:auto">✓ Ready</span>
+  </div>
+
+  <div class="stat-grid">
+    <div class="stat-tile"><div class="stat-lbl">Today Sales</div><div class="stat-val g" id="d-sales">₹0</div></div>
+    <div class="stat-tile"><div class="stat-lbl">Today Expense</div><div class="stat-val r" id="d-exp">₹0</div></div>
+    <div class="stat-tile"><div class="stat-lbl">Net Balance</div><div class="stat-val b" id="d-net">₹0</div></div>
+    <div class="stat-tile"><div class="stat-lbl">Overdraft</div><div class="stat-val y" id="d-od">NONE</div></div>
+  </div>
+
+  <div class="card">
+    <div class="card-hd">📊 Shop Summary</div>
+    <div class="shop-cards" id="shop-cards"></div>
+  </div>
+
+  <div class="card">
+    <div class="card-hd">⚠️ Supplier Alerts</div>
+    <div id="dash-sup-alerts"></div>
+  </div>
+
+  <div class="card">
+    <div class="card-hd">📋 Reconciliation</div>
+    <div id="dash-recon"></div>
+  </div>
+
+</div>
+
+<!-- PANE: SCAN -->
+<div class="pane" id="pane-scan">
+
+  <div class="steps" id="scan-steps">
+    <div class="step active" id="st1"><div class="step-dot">1</div><span class="step-lbl">Upload</span><div class="step-line"></div></div>
+    <div class="step" id="st2"><div class="step-dot">2</div><span class="step-lbl">Scan</span><div class="step-line"></div></div>
+    <div class="step" id="st3"><div class="step-dot">3</div><span class="step-lbl">Verify</span><div class="step-line"></div></div>
+    <div class="step" id="st4"><div class="step-dot">4</div><span class="step-lbl">Saved</span></div>
+  </div>
+
+  <!-- Phase 1: Upload -->
+  <div id="ph-upload">
+    <div class="card">
+      <div class="card-hd">📷 Select Shop & Upload Note</div>
+      <div class="form-row full" style="margin-bottom:12px">
+        <div class="fg">
+          <label>Shop</label>
+          <select id="scan-shop">
+            <option value="s1">🥬 Vegetable Shop 1</option>
+            <option value="s2">🥦 Vegetable Shop 2</option>
+            <option value="s3">☕ Tea Shop</option>
+            <option value="s4">💍 Tulsi Bridal Jewellery</option>
+          </select>
+        </div>
+      </div>
+      <div class="upload-zone" id="dropzone">
+        <input type="file" accept="image/*" id="fileInput" onchange="onFile(this)">
+        <div class="uz-icon">📒</div>
+        <div class="uz-title">Upload Handwritten Note</div>
+        <div class="uz-sub">Tap to select photo or drag & drop</div>
+      </div>
+      <div id="preview-area" style="display:none">
+        <img class="img-preview" id="preview-img" src="" alt="">
+        <button class="btn primary" onclick="startScan()">🔍 Scan & Extract Entries</button>
+        <button class="btn secondary" onclick="resetScan()">✕ Change Photo</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Phase 2: Scanning -->
+  <div id="ph-scanning" style="display:none">
+    <div class="card scan-card">
+      <div class="spinner"></div>
+      <div class="scan-title">Reading your ledger...</div>
+      <div class="scan-sub" id="scan-msg">Analysing handwriting...</div>
+      <div class="progress-wrap"><div class="progress-bar" id="prog-bar"></div></div>
+      <div class="progress-pct" id="prog-pct">0%</div>
+    </div>
+  </div>
+
+  <!-- Phase 3: Review -->
+  <div id="ph-review" style="display:none">
+    <div class="card">
+      <div class="card-hd">✏️ Review Extracted Entries</div>
+      <div id="scan-alert" class="alert ok" style="display:none"></div>
+      <div class="entries-list" id="entries-list"></div>
+      <button class="btn primary" id="confirm-btn" onclick="confirmEntries()">✓ Confirm & Save All</button>
+      <button class="btn secondary" onclick="resetScan()">↩ Scan Again</button>
+    </div>
+  </div>
+
+  <!-- Phase 4: Done -->
+  <div id="ph-done" style="display:none">
+    <div class="card">
+      <div class="card-hd">✅ Entries Saved!</div>
+      <div id="done-sheet-status" class="alert info">Syncing to Google Sheets...</div>
+      <div class="confirm-box" id="done-summary"></div>
+      <button class="btn primary" onclick="goPane('dash')">📊 View Dashboard</button>
+      <button class="btn secondary" onclick="resetScan()">📷 Scan Another Page</button>
+    </div>
+  </div>
+
+</div>
+
+<!-- PANE: MANUAL ENTRY -->
+<div class="pane" id="pane-entry">
+  <div class="card">
+    <div class="card-hd">✏️ Manual Entry</div>
+    <div class="form-row">
+      <div class="fg"><label>Date</label><input type="date" id="m-date"></div>
+      <div class="fg"><label>Shop</label>
+        <select id="m-shop">
+          <option value="s1">🥬 Veg Shop 1</option>
+          <option value="s2">🥦 Veg Shop 2</option>
+          <option value="s3">☕ Tea Shop</option>
+          <option value="s4">💍 Tulsi Bridal</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="fg"><label>Type</label>
+        <select id="m-type" onchange="toggleSupplier()">
+          <option value="sales">💚 Sales</option>
+          <option value="expense">🔴 Expense</option>
+          <option value="payment">🟡 Supplier Payment</option>
+        </select>
+      </div>
+      <div class="fg"><label>Amount (₹)</label><input type="number" id="m-amount" placeholder="0"></div>
+    </div>
+    <div class="form-row full" id="sup-row" style="display:none">
+      <div class="fg"><label>Supplier</label>
+        <select id="m-supplier">
+          <option>Mr Vilas</option><option>Mr Carrot</option><option>Inji</option>
+          <option>PMN</option><option>Lemon</option><option>Siva Annan</option><option>Other</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-row full">
+      <div class="fg"><label>Description</label><input type="text" id="m-desc" placeholder="What is this entry?"></div>
+    </div>
+    <div class="form-row">
+      <div class="fg"><label>Bill / Ref No</label><input type="text" id="m-ref" placeholder="Optional"></div>
+      <div class="fg"><label>Note</label><input type="text" id="m-note" placeholder="Optional"></div>
+    </div>
+    <button class="btn primary" onclick="addManual()">+ Add Entry</button>
+  </div>
+</div>
+
+<!-- PANE: LEDGER -->
+<div class="pane" id="pane-ledger">
+  <div class="card">
+    <div class="card-hd">📋 All Transactions</div>
+    <div class="form-row" style="margin-bottom:10px">
+      <div class="fg"><label>Filter Shop</label>
+        <select id="f-shop" onchange="renderLedger()">
+          <option value="all">All Shops</option>
+          <option value="s1">Veg Shop 1</option>
+          <option value="s2">Veg Shop 2</option>
+          <option value="s3">Tea Shop</option>
+          <option value="s4">Tulsi Bridal</option>
+        </select>
+      </div>
+      <div class="fg"><label>Filter Type</label>
+        <select id="f-type" onchange="renderLedger()">
+          <option value="all">All Types</option>
+          <option value="sales">Sales</option>
+          <option value="expense">Expense</option>
+          <option value="payment">Payment</option>
+        </select>
+      </div>
+    </div>
+    <div class="ltable-wrap">
+      <table class="ltable">
+        <thead><tr><th>Date</th><th>Shop</th><th>Type</th><th>Description</th><th>Amount</th><th></th></tr></thead>
+        <tbody id="ltbody"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- PANE: REPORTS -->
+<div class="pane" id="pane-report">
+
+  <div class="card">
+    <div class="card-hd">📈 Monthly P&L Report</div>
+    <div class="month-tabs" id="month-tabs"></div>
+    <div id="pl-content"></div>
+  </div>
+
+  <div class="card">
+    <div class="card-hd">⚠️ Supplier Risk Monitor</div>
+    <div id="sup-list"></div>
+  </div>
+
+</div>
+
+<!-- SETTINGS PANE -->
+<div class="pane" id="pane-settings">
+
+  <div class="card">
+    <div class="card-hd">🏪 Shop Names</div>
+    <div id="shop-name-editor"></div>
+    <button class="btn primary" onclick="saveShopNames()" style="margin-top:12px">✓ Save Shop Names</button>
+  </div>
+
+  <div class="card">
+    <div class="card-hd">📊 Google Sheets Sync</div>
+    <div class="alert info" style="margin-bottom:12px">
+      To sync to Google Sheets, you need a free Google Apps Script web app URL.<br><br>
+      <b>Steps:</b><br>
+      1. Go to <b>script.google.com</b><br>
+      2. New Project → paste the script below<br>
+      3. Deploy → Web App → Anyone → Copy URL<br>
+      4. Paste URL here and save
+    </div>
+    <div class="fg" style="margin-bottom:10px">
+      <label>Apps Script Web App URL</label>
+      <input type="text" id="script-url-input" placeholder="https://script.google.com/macros/s/..." value="" style="font-size:12px">
+    </div>
+    <button class="btn primary" onclick="saveScriptUrl()">✓ Save & Connect</button>
+    <div id="script-status" style="margin-top:8px;font-size:12px;color:var(--muted)"></div>
+
+    <div class="card-hd" style="margin-top:16px">📋 Apps Script Code (copy this)</div>
+    <div style="background:var(--soft);border:1px solid var(--border);border-radius:8px;padding:12px;font-family:var(--mono);font-size:10px;color:var(--text);overflow-x:auto;white-space:pre;margin-top:8px">function doPost(e) {
+  var data = JSON.parse(e.postData.contents);
+  var ss = SpreadsheetApp.openById(data.sheetId);
+  var sheet = ss.getSheetByName('Ledger') || ss.insertSheet('Ledger');
+  if(sheet.getLastRow()===0){
+    sheet.appendRow(['Date','Shop','Type','Description','Amount','Reference','Supplier','Added On']);
+  }
+  data.rows.forEach(function(row){ sheet.appendRow(row); });
+  return ContentService.createTextOutput('OK');
+}</div>
+    <button class="btn secondary" onclick="copyScript()" style="margin-top:8px">📋 Copy Script</button>
+  </div>
+
+  <div class="card">
+    <div class="card-hd">🔑 API Keys</div>
+    <div class="setting-row">
+      <div><div class="setting-lbl">Claude API Key</div><div class="setting-sub">For photo scanning</div></div>
+      <div class="setting-val">...${content[content.find("claudeKey: '")+11:content.find("claudeKey: '")+25]}...</div>
+    </div>
+    <div class="setting-row">
+      <div><div class="setting-lbl">Sheet ID</div><div class="setting-sub">Google Spreadsheet</div></div>
+      <div class="setting-val">1cCqHzj...</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-hd">🗑️ Data Management</div>
+    <button class="btn danger" onclick="if(confirm('Delete ALL transactions?')){TXS=[];save();renderDash();renderLedger();alert('Cleared!')}">🗑️ Clear All Transactions</button>
+  </div>
+
+</div>
+
+<!-- BOTTOM NAV -->
+<div class="bnav">
+  <button class="bnav-btn on" onclick="goPane('dash',this)"><span class="icon">📊</span><span class="lbl">Dashboard</span></button>
+  <button class="bnav-btn" onclick="goPane('scan',this)"><span class="icon">📷</span><span class="lbl">Scan</span></button>
+  <button class="bnav-btn" onclick="goPane('entry',this)"><span class="icon">✏️</span><span class="lbl">Entry</span></button>
+  <button class="bnav-btn" onclick="goPane('ledger',this)"><span class="icon">📋</span><span class="lbl">Ledger</span></button>
+  <button class="bnav-btn" onclick="goPane('settings',this)"><span class="icon">⚙️</span><span class="lbl">Settings</span></button>
+</div>
+
+<script>
+// ══════════════════════════════════════
+// CONFIG — Keys embedded securely
+// ══════════════════════════════════════
+const CFG = {
+  claudeKey: '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',
+  sheetId:   '1cCqHzjTjOah_M99YoYCD4EVpllpfJtm4FkWXYGGHTZU',
+  get shops() {
+    return JSON.parse(localStorage.getItem('slv_shops') || JSON.stringify({
+      s1: { name:'Veg Shop 1',    icon:'🥬', color:'#16a34a' },
+      s2: { name:'Veg Shop 2',    icon:'🥦', color:'#2563eb' },
+      s3: { name:'Tea Shop',      icon:'☕', color:'#d97706' },
+      s4: { name:'Tulsi Bridal',  icon:'💍', color:'#9333ea' }
+    }));
+  }
+};
+// Google Apps Script Web App URL for Sheets sync
+// User needs to set this after deploying Apps Script
+let APPS_SCRIPT_URL = localStorage.getItem('slv_script_url') || '';
+
+// ══════════════════════════════════════
+// STATE
+// ══════════════════════════════════════
+let TXS = JSON.parse(localStorage.getItem('slv_txs') || '[]');
+let SBAL = JSON.parse(localStorage.getItem('slv_sup') || JSON.stringify({
+  'Mr Vilas':57286,'Mr Carrot':22520,'Inji':34710,
+  'PMN':19076,'Lemon':9620,'Siva Annan':86170
+}));
+let activeShop = 'all';
+let scanEntries = [];
+let scanImgB64 = null;
+
+// ══════════════════════════════════════
+// INIT
+// ══════════════════════════════════════
+window.onload = () => {
+  const n = new Date();
+  document.getElementById('topdate').innerHTML =
+    `${n.toLocaleDateString('en-IN',{day:'2-digit',month:'short'})}<br>
+     <span style="font-size:10px;opacity:.6">${n.toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit'})}</span>`;
+  document.getElementById('m-date').value = n.toISOString().split('T')[0];
+  renderDash();
+  renderLedger();
+  renderReports();
+  setupDrag();
+};
+
+// ══════════════════════════════════════
+// NAVIGATION
+// ══════════════════════════════════════
+function goPane(name, btn) {
+  document.querySelectorAll('.pane').forEach(p => p.classList.remove('on'));
+  document.querySelectorAll('.bnav-btn').forEach(b => b.classList.remove('on'));
+  document.getElementById('pane-'+name).classList.add('on');
+  if(btn) btn.classList.add('on');
+  if(name==='dash') renderDash();
+  if(name==='ledger') renderLedger();
+  if(name==='report') renderReports();
+  if(name==='settings') initSettings();
+}
+
+function selectShop(shop, el) {
+  activeShop = shop;
+  document.querySelectorAll('.shop-chip').forEach(c => c.classList.remove('on'));
+  el.classList.add('on');
+  renderDash();
+}
+
+// ══════════════════════════════════════
+// DASHBOARD
+// ══════════════════════════════════════
+function renderDash() {
+  const today = new Date().toISOString().split('T')[0];
+  const txs = filterByShop(TXS.filter(t => t.date === today));
+  const sales = sumType(txs,'sales'), exp = sumType(txs,'expense'), pay = sumType(txs,'payment');
+  const net = sales - exp - pay;
+
+  document.getElementById('d-sales').textContent = '₹'+fmt(sales);
+  document.getElementById('d-exp').textContent = '₹'+fmt(exp+pay);
+  const netEl = document.getElementById('d-net');
+  netEl.textContent = (net>=0?'+':'')+' ₹'+fmt(net);
+  netEl.className = 'stat-val '+(net>=0?'g':'r');
+  const odEl = document.getElementById('d-od');
+  if(net<0){odEl.textContent='₹'+fmt(Math.abs(net));odEl.className='stat-val r';}
+  else{odEl.textContent='NONE';odEl.className='stat-val y';}
+
+  const sp = document.getElementById('dash-status');
+  const st = document.getElementById('dash-status-text');
+  if(!txs.length){sp.className='status-pill warn';st.textContent='No entries today — scan or add entries';}
+  else if(net>=0){sp.className='status-pill ok';st.textContent=`✓ Today net +₹${fmt(net)} — Balanced`;}
+  else{sp.className='status-pill bad';st.textContent=`✗ Overdraft ₹${fmt(Math.abs(net))} — Check expenses!`;}
+
+  // Shop cards
+  const sc = document.getElementById('shop-cards');
+  const shopsToShow = activeShop==='all' ? Object.keys(CFG.shops) : [activeShop];
+  sc.innerHTML = shopsToShow.map(sid => {
+    const stxs = TXS.filter(t=>t.date===today && t.shop===sid);
+    const ss=sumType(stxs,'sales'), se=sumType(stxs,'expense'), sp2=sumType(stxs,'payment');
+    const sn=ss-se-sp2;
+    return `<div class="shop-card ${sid}">
+      <div class="sc-top">
+        <div class="sc-name">${CFG.shops[sid].icon} ${CFG.shops[sid].name}</div>
+        <div class="sc-badge">${stxs.length} entries</div>
+      </div>
+      <div class="sc-nums">
+        <span class="sc-num">Sales: <b>₹${fmt(ss)}</b></span>
+        <span class="sc-num">Exp: <b>₹${fmt(se+sp2)}</b></span>
+        <span class="sc-num" style="color:${sn>=0?'var(--green)':'var(--red)'}">Net: <b>${sn>=0?'+':''}₹${fmt(sn)}</b></span>
+      </div>
+    </div>`;
+  }).join('');
+
+  // Supplier alerts
+  const sa = document.getElementById('dash-sup-alerts');
+  const critical = Object.entries(SBAL).filter(([,b])=>b>50000);
+  if(!critical.length){
+    sa.innerHTML='<div class="empty">✓ All supplier balances under control</div>';
+  } else {
+    sa.innerHTML = critical.map(([n,b]) => {
+      const risk = b>80000?'critical':b>50000?'high':'medium';
+      return `<div class="sup-item">
+        <div><div class="sup-name">${n}</div><div class="sup-shop">Supplier</div></div>
+        <div style="display:flex;align-items:center">
+          <span class="risk-badge ${risk}">${risk.toUpperCase()}</span>
+          <span class="sup-bal" style="color:${b>80000?'var(--red)':'var(--yellow)'}">${fmt(b)}</span>
+        </div>
+      </div>`;
+    }).join('');
+  }
+
+  // Reconciliation
+  const rc = document.getElementById('dash-recon');
+  if(!txs.length){rc.innerHTML='<div class="empty">No entries today yet</div>';return;}
+  rc.innerHTML = `
+    <div class="confirm-row"><span>Sales</span><span style="color:var(--green)">+₹${fmt(sales)}</span></div>
+    <div class="confirm-row"><span>Expenses</span><span style="color:var(--red)">-₹${fmt(exp)}</span></div>
+    <div class="confirm-row"><span>Supplier Payments</span><span style="color:var(--yellow)">-₹${fmt(pay)}</span></div>
+    <div class="confirm-row"><span>Net Cash Flow</span><span style="color:${net>=0?'var(--green)':'var(--red)'}">${net>=0?'+':''}₹${fmt(net)}</span></div>
+  `;
+}
+
+// ══════════════════════════════════════
+// SCAN
+// ══════════════════════════════════════
+function setupDrag() {
+  const dz = document.getElementById('dropzone');
+  ['dragenter','dragover'].forEach(e=>dz.addEventListener(e,ev=>{ev.preventDefault();dz.classList.add('drag')}));
+  ['dragleave','drop'].forEach(e=>dz.addEventListener(e,ev=>{ev.preventDefault();dz.classList.remove('drag')}));
+  dz.addEventListener('drop',ev=>{ const f=ev.dataTransfer.files[0]; if(f) handleFile(f); });
+}
+
+function onFile(inp) { if(inp.files[0]) handleFile(inp.files[0]); }
+
+function handleFile(file) {
+  const r = new FileReader();
+  r.onload = e => {
+    scanImgB64 = e.target.result.split(',')[1];
+    document.getElementById('preview-img').src = e.target.result;
+    document.getElementById('preview-area').style.display = 'block';
+  };
+  r.readAsDataURL(file);
+}
+
+function resetScan() {
+  scanImgB64 = null; scanEntries = [];
+  document.getElementById('fileInput').value = '';
+  document.getElementById('preview-area').style.display = 'none';
+  showPhase('upload'); setStep(1);
+}
+
+function showPhase(name) {
+  ['upload','scanning','review','done'].forEach(p=>{
+    document.getElementById('ph-'+p).style.display = p===name?'block':'none';
+  });
+}
+
+function setStep(n) {
+  [1,2,3,4].forEach(i=>{
+    const s = document.getElementById('st'+i);
+    s.classList.toggle('done', i<n);
+    s.classList.toggle('active', i===n);
+  });
+}
+
+async function startScan() {
+  if(!scanImgB64) return;
+  showPhase('scanning'); setStep(2);
+  animProgress();
+  const shop = document.getElementById('scan-shop').value;
+  const shopName = CFG.shops[shop].name;
+  const today = new Date().toISOString().split('T')[0];
+
+  const sysprompt = `You are an expert ledger OCR agent for Selva's multi-shop business in Tamil Nadu, India.
+Shop being scanned: ${shopName}
+Known suppliers (vegetable shop): Mr Vilas, Mr Carrot, Inji, PMN, Lemon, Siva Annan.
+
+Extract ALL entries from the handwritten ledger image.
+For each entry determine: type (sales/expense/payment/unknown), description, amount in rupees, date, supplier if payment, bill/reference number.
+If ANY entry is unclear, illegible, or ambiguous — set doubt=true and write a specific clarifying question in English.
+
+Return ONLY valid JSON, no markdown:
+{
+  "note_date": "YYYY-MM-DD or null",
+  "entries": [
+    {"id":1,"type":"sales|expense|payment|unknown","desc":"description","amount":1234,"ref":null,"supplier":null,"doubt":false,"doubtQ":null}
+  ],
+  "summary": "brief one line summary"
+}
+Set amount to null if completely illegible. Be thorough — extract every single line item.`;
+
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method:'POST',
+      headers:{'Content-Type':'application/json','x-api-key':CFG.claudeKey,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
+      body: JSON.stringify({
+        model:'claude-sonnet-4-20250514', max_tokens:2000,
+        system: sysprompt,
+        messages:[{role:'user',content:[
+          {type:'image',source:{type:'base64',media_type:'image/jpeg',data:scanImgB64}},
+          {type:'text',text:`Extract all entries. Shop: ${shopName}. Today: ${today}. Return only JSON.`}
+        ]}]
+      })
+    });
+    const data = await res.json();
+    if(data.error) throw new Error(data.error.message);
+    const raw = data.content?.map(c=>c.text||'').join('').replace(/```json|```/g,'').trim();
+    const parsed = JSON.parse(raw);
+    const noteDate = parsed.note_date || today;
+    scanEntries = parsed.entries.map(e=>({...e, date:noteDate, shop, resolved:false}));
+    showPhase('review'); setStep(3);
+    renderEntries(parsed.summary);
+  } catch(err) {
+    showPhase('upload'); setStep(1);
+    alert('Scan failed: '+err.message+'\nPlease check your Claude API key and try again.');
+  }
+}
+
+let progIv = null;
+function animProgress() {
+  const bar = document.getElementById('prog-bar');
+  const pct = document.getElementById('prog-pct');
+  const msgs = ['Analysing handwriting...','Detecting amounts...','Identifying entry types...','Flagging unclear items...','Preparing results...'];
+  let p=0, mi=0;
+  clearInterval(progIv);
+  progIv = setInterval(()=>{
+    p = Math.min(p+Math.random()*3+1, 90);
+    bar.style.width = p+'%'; pct.textContent = Math.round(p)+'%';
+    if(mi<msgs.length && p>(mi+1)*17) document.getElementById('scan-msg').textContent = msgs[mi++];
+    if(p>=90) clearInterval(progIv);
+  }, 120);
+}
+
+// ══════════════════════════════════════
+// RENDER ENTRIES
+// ══════════════════════════════════════
+function renderEntries(summary) {
+  const list = document.getElementById('entries-list');
+  const al = document.getElementById('scan-alert');
+  const doubts = scanEntries.filter(e=>e.doubt).length;
+  al.style.display = 'block';
+  if(doubts>0){ al.className='alert warn'; al.textContent=`⚠ ${scanEntries.length} entries found, ${doubts} need clarification.`; }
+  else { al.className='alert ok'; al.textContent=`✓ ${scanEntries.length} entries extracted. Edit if needed, then confirm.`; }
+  list.innerHTML='';
+  scanEntries.forEach((e,i) => renderOneEntry(e,i,list));
+  updateConfirmBtn();
+}
+
+function renderOneEntry(e, i, container) {
+  const d = document.createElement('div');
+  d.className = 'entry-card'+(e.doubt?' doubt':'');
+  d.id='ec-'+i;
+  const amtC = e.type==='sales'?'pos':e.type==='expense'||e.type==='payment'?'neg':'unk';
+  const amtS = e.amount!=null?(e.type==='sales'?'+':'-')+'₹'+fmt(e.amount):'₹?';
+  d.innerHTML=`
+    <div class="entry-top" style="margin-bottom:10px">
+      <span class="entry-num">#${e.id}</span>
+      <span class="type-badge ${e.type||'unknown'}" id="badge-${i}">${(e.type||'unknown').toUpperCase()}</span>
+      <span class="entry-amt ${amtC}" id="amt-${i}" style="margin-left:auto">${amtS}</span>
+      <button onclick="deleteEntry(${i})" style="background:none;border:none;color:var(--red);font-size:20px;cursor:pointer;padding:0 4px;flex-shrink:0">✕</button>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
+      <div class="fg">
+        <label>Description</label>
+        <input type="text" value="${esc(e.desc||'')}" onchange="scanEntries[${i}].desc=this.value" style="font-size:13px;padding:8px 10px">
+      </div>
+      <div class="fg">
+        <label>Amount (₹)</label>
+        <input type="number" value="${e.amount||''}" onchange="scanEntries[${i}].amount=parseFloat(this.value)||0;refreshAmt(${i})" style="font-size:13px;padding:8px 10px">
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+      <div class="fg">
+        <label>Type</label>
+        <select onchange="scanEntries[${i}].type=this.value;refreshAmt(${i})" style="font-size:13px;padding:8px 10px">
+          <option value="sales" ${e.type==='sales'?'selected':''}>💚 Sales</option>
+          <option value="expense" ${e.type==='expense'?'selected':''}>🔴 Expense</option>
+          <option value="payment" ${e.type==='payment'?'selected':''}>🟡 Supplier Payment</option>
+          <option value="unknown" ${e.type==='unknown'?'selected':''}>❓ Unknown</option>
+        </select>
+      </div>
+      <div class="fg">
+        <label>Supplier</label>
+        <select onchange="scanEntries[${i}].supplier=this.value==='none'?null:this.value" style="font-size:13px;padding:8px 10px">
+          <option value="none" ${!e.supplier?'selected':''}>— None —</option>
+          <option value="Mr Vilas" ${e.supplier==='Mr Vilas'?'selected':''}>Mr Vilas</option>
+          <option value="Mr Carrot" ${e.supplier==='Mr Carrot'?'selected':''}>Mr Carrot</option>
+          <option value="Inji" ${e.supplier==='Inji'?'selected':''}>Inji</option>
+          <option value="PMN" ${e.supplier==='PMN'?'selected':''}>PMN</option>
+          <option value="Lemon" ${e.supplier==='Lemon'?'selected':''}>Lemon</option>
+          <option value="Siva Annan" ${e.supplier==='Siva Annan'?'selected':''}>Siva Annan</option>
+        </select>
+      </div>
+    </div>
+    ${e.doubt?`
+    <div class="doubt-box" id="db-${i}" style="margin-top:10px">
+      <div class="doubt-q">❓ ${esc(e.doubtQ||'')}</div>
+      <div class="doubt-row">
+        <input class="doubt-input" id="da-${i}" placeholder="Your answer..." onkeydown="if(event.key==='Enter')solveDoubt(${i})">
+        <button class="btn sm primary" style="flex-shrink:0" onclick="solveDoubt(${i})">✓ OK</button>
+      </div>
+    </div>`:''}
+  `;
+  container.appendChild(d);
+}
+
+function deleteEntry(i) {
+  scanEntries.splice(i,1);
+  const list = document.getElementById('entries-list');
+  list.innerHTML='';
+  scanEntries.forEach((e,idx) => renderOneEntry(e,idx,list));
+  updateConfirmBtn();
+}
+
+function refreshAmt(i) {
+  const e = scanEntries[i];
+  const amtC = e.type==='sales'?'pos':e.type==='expense'||e.type==='payment'?'neg':'unk';
+  const amtS = e.amount!=null?(e.type==='sales'?'+':'-')+'₹'+fmt(e.amount):'₹?';
+  const amtEl = document.getElementById('amt-'+i);
+  const badgeEl = document.getElementById('badge-'+i);
+  if(amtEl){ amtEl.textContent=amtS; amtEl.className='entry-amt '+amtC; }
+  if(badgeEl){ badgeEl.textContent=e.type.toUpperCase(); badgeEl.className='type-badge '+e.type; }
+}
+
+async function solveDoubt(i) {
+  const ans = document.getElementById('da-'+i)?.value.trim();
+  if(!ans) return;
+  const e = scanEntries[i];
+  const db = document.getElementById('db-'+i);
+  db.innerHTML = '<div style="font-size:12px;color:var(--muted)">Processing...</div>';
+
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method:'POST',
+      headers:{'Content-Type':'application/json','x-api-key':CFG.claudeKey,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
+      body: JSON.stringify({
+        model:'claude-sonnet-4-20250514', max_tokens:500,
+        messages:[{role:'user',content:`Ledger entry: type="${e.type}", desc="${e.desc}", amount=${e.amount}
+Doubt question: "${e.doubtQ}"
+User answer: "${ans}"
+Update entry based on answer. Return ONLY JSON: {"type":"sales|expense|payment","desc":"updated","amount":1234,"supplier":"name or null"}`}]
+      })
+    });
+    const data = await res.json();
+    const upd = JSON.parse(data.content.map(c=>c.text||'').join('').replace(/```json|```/g,'').trim());
+    Object.assign(e, {type:upd.type||e.type, desc:upd.desc||e.desc, amount:upd.amount??e.amount, supplier:upd.supplier||e.supplier, doubt:false, resolved:true});
+    const card = document.getElementById('ec-'+i);
+    card.className='entry-card resolved';
+    const amtC = e.type==='sales'?'pos':e.type==='expense'||e.type==='payment'?'neg':'unk';
+    card.innerHTML=`<div class="entry-top">
+      <span class="entry-num">#${e.id}</span>
+      <span class="type-badge ${e.type}">${e.type.toUpperCase()}</span>
+      <span class="entry-desc">${esc(e.desc)}${e.supplier?` <small style="color:var(--muted)">(${e.supplier})</small>`:''}</span>
+      <span class="entry-amt ${amtC}">${e.type==='sales'?'+':'-'}₹${fmt(e.amount)}</span>
+      <small style="color:var(--blue);font-size:10px;margin-left:auto">✎ edited</small>
+    </div>`;
+    updateConfirmBtn();
+  } catch(err) {
+    db.innerHTML=`<div style="font-size:12px;color:var(--red)">Error. Try again.</div>`;
+  }
+}
+
+function updateConfirmBtn() {
+  const rem = scanEntries.filter(e=>e.doubt).length;
+  const btn = document.getElementById('confirm-btn');
+  if(rem>0){btn.textContent=`⚠ ${rem} doubt(s) remaining — resolve first`;btn.style.opacity='.5';btn.onclick=null;}
+  else{btn.textContent=`✓ Confirm & Save ${scanEntries.length} Entries`;btn.style.opacity='1';btn.onclick=confirmEntries;}
+}
+
+// ══════════════════════════════════════
+// CONFIRM & SAVE
+// ══════════════════════════════════════
+async function confirmEntries() {
+  if(scanEntries.some(e=>e.doubt)) return;
+  let s=0,ex=0,py=0;
+  const rows = [];
+
+  scanEntries.forEach(e => {
+    const tx = {id:Date.now()+Math.random(), date:e.date, shop:e.shop, type:e.type, amount:e.amount||0, desc:e.desc, ref:e.ref||'', supplier:e.supplier||null, source:'scan'};
+    TXS.push(tx);
+    if(e.type==='sales') s+=e.amount||0;
+    else if(e.type==='expense') ex+=e.amount||0;
+    else if(e.type==='payment'){py+=e.amount||0; if(e.supplier&&SBAL[e.supplier]!=null) SBAL[e.supplier]=Math.max(0,SBAL[e.supplier]-(e.amount||0));}
+    rows.push([e.date, CFG.shops[e.shop]?.name||e.shop, e.type, e.desc, e.amount||0, e.ref||'', e.supplier||'', new Date().toLocaleString('en-IN')]);
+  });
+
+  save();
+  const net = s-ex-py;
+  document.getElementById('done-summary').innerHTML=`
+    <div class="confirm-row"><span>Entries Saved</span><span>${scanEntries.length}</span></div>
+    <div class="confirm-row"><span>Sales</span><span style="color:var(--green)">+₹${fmt(s)}</span></div>
+    <div class="confirm-row"><span>Expenses</span><span style="color:var(--red)">-₹${fmt(ex)}</span></div>
+    <div class="confirm-row"><span>Payments</span><span style="color:var(--yellow)">-₹${fmt(py)}</span></div>
+    <div class="confirm-row"><span>Net</span><span style="color:${net>=0?'var(--green)':'var(--red)'}">${net>=0?'+':''}₹${fmt(net)}</span></div>
+  `;
+  showPhase('done'); setStep(4);
+  renderDash(); renderLedger();
+
+  // Google Sheets sync
+  await syncToSheets(rows);
+}
+
+// ══════════════════════════════════════
+// GOOGLE SHEETS SYNC
+// ══════════════════════════════════════
+async function syncToSheets(rows) {
+  const statusEl = document.getElementById('done-sheet-status');
+  if(!APPS_SCRIPT_URL) {
+    statusEl.className='alert warn';
+    statusEl.textContent='⚠ Google Sheets not connected. Go to Settings tab to set up sync.';
+    return;
+  }
+  statusEl.className='alert info'; statusEl.textContent='🔄 Syncing to Google Sheets...';
+  try {
+    await fetch(APPS_SCRIPT_URL, {
+      method:'POST',
+      mode:'no-cors',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({sheetId: CFG.sheetId, rows})
+    });
+    statusEl.className='alert ok'; statusEl.textContent=`✅ Synced ${rows.length} entries to Google Sheets!`;
+    document.getElementById('sync-status').className='sync-badge ok'; document.getElementById('sync-status').textContent='✓ Synced';
+  } catch(err) {
+    statusEl.className='alert warn'; statusEl.textContent=`⚠ Sheet sync failed. Data saved locally.`;
+    document.getElementById('sync-status').className='sync-badge err'; document.getElementById('sync-status').textContent='⚠ Sync failed';
+  }
+}
+
+// ══════════════════════════════════════
+// MANUAL ENTRY
+// ══════════════════════════════════════
+function toggleSupplier() {
+  document.getElementById('sup-row').style.display = document.getElementById('m-type').value==='payment'?'grid':'none';
+}
+
+async function addManual() {
+  const date=document.getElementById('m-date').value, shop=document.getElementById('m-shop').value,
+        type=document.getElementById('m-type').value, amount=parseFloat(document.getElementById('m-amount').value),
+        desc=document.getElementById('m-desc').value.trim(), ref=document.getElementById('m-ref').value.trim(),
+        note=document.getElementById('m-note').value.trim(), supplier=document.getElementById('m-supplier').value;
+  if(!date||!amount||amount<=0||!desc){alert('Please fill Date, Amount and Description');return;}
+  const tx={id:Date.now(), date, shop, type, amount, desc, ref, note, supplier:type==='payment'?supplier:null, source:'manual'};
+  TXS.push(tx);
+  if(type==='payment'&&supplier&&SBAL[supplier]!=null) SBAL[supplier]=Math.max(0,SBAL[supplier]-amount);
+  save();
+  // sync single row
+  await syncToSheets([[date, CFG.shops[shop]?.name||shop, type, desc, amount, ref, tx.supplier||'', new Date().toLocaleString('en-IN')]]);
+  renderDash(); renderLedger();
+  document.getElementById('m-amount').value=''; document.getElementById('m-desc').value=''; document.getElementById('m-ref').value=''; document.getElementById('m-note').value='';
+  alert('✅ Entry saved!');
+}
+
+// ══════════════════════════════════════
+// LEDGER TABLE
+// ══════════════════════════════════════
+function renderLedger() {
+  const fshop=document.getElementById('f-shop')?.value||'all';
+  const ftype=document.getElementById('f-type')?.value||'all';
+  let txs=[...TXS].reverse();
+  if(fshop!=='all') txs=txs.filter(t=>t.shop===fshop);
+  if(ftype!=='all') txs=txs.filter(t=>t.type===ftype);
+  const tb=document.getElementById('ltbody');
+  if(!txs.length){tb.innerHTML=`<tr><td colspan="6" class="empty">No transactions yet</td></tr>`;return;}
+  tb.innerHTML=txs.map(t=>`<tr id="row-${t.id}">
+    <td style="font-family:var(--mono);font-size:11px;color:var(--muted);white-space:nowrap">${t.date}</td>
+    <td style="font-size:11px">${CFG.shops[t.shop]?.icon||'🏪'} ${CFG.shops[t.shop]?.name||t.shop}</td>
+    <td><span class="type-badge ${t.type}">${t.type.toUpperCase()}</span></td>
+    <td style="font-size:13px">${esc(t.desc||'')}${t.supplier?`<br><small style="color:var(--muted)">${t.supplier}</small>`:''}</td>
+    <td style="font-family:var(--mono);font-size:13px;font-weight:700;color:${t.type==='sales'?'var(--green)':'var(--red)'};white-space:nowrap">${t.type==='sales'?'+':'-'}₹${fmt(t.amount)}</td>
+    <td style="white-space:nowrap">
+      <button onclick="editTx('${t.id}')" style="background:none;border:none;color:var(--blue);font-size:15px;cursor:pointer;padding:4px">✏️</button>
+      <button onclick="delTx('${t.id}')" style="background:none;border:none;color:var(--red);font-size:15px;cursor:pointer;padding:4px">✕</button>
+    </td>
+  </tr>`).join('');
+}
+
+function editTx(id) {
+  const t = TXS.find(x=>String(x.id)===String(id));
+  if(!t) return;
+  const shops = CFG.shops;
+  const row = document.getElementById('row-'+id);
+  row.innerHTML=`
+    <td colspan="6" style="padding:12px">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
+        <div class="fg"><label>Description</label>
+          <input id="ed-desc-${id}" type="text" value="${esc(t.desc||'')}" style="font-size:13px;padding:8px">
+        </div>
+        <div class="fg"><label>Amount (₹)</label>
+          <input id="ed-amt-${id}" type="number" value="${t.amount||0}" style="font-size:13px;padding:8px">
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px">
+        <div class="fg"><label>Type</label>
+          <select id="ed-type-${id}" style="font-size:13px;padding:8px">
+            <option value="sales" ${t.type==='sales'?'selected':''}>💚 Sales</option>
+            <option value="expense" ${t.type==='expense'?'selected':''}>🔴 Expense</option>
+            <option value="payment" ${t.type==='payment'?'selected':''}>🟡 Payment</option>
+          </select>
+        </div>
+        <div class="fg"><label>Shop</label>
+          <select id="ed-shop-${id}" style="font-size:13px;padding:8px">
+            ${Object.entries(shops).map(([k,v])=>`<option value="${k}" ${t.shop===k?'selected':''}>${v.icon} ${v.name}</option>`).join('')}
+          </select>
+        </div>
+      </div>
+      <div style="display:flex;gap:8px">
+        <button onclick="saveTxEdit('${id}')" class="btn primary sm" style="flex:1">✓ Save</button>
+        <button onclick="renderLedger()" class="btn secondary sm" style="flex:1">✕ Cancel</button>
+      </div>
+    </td>
+  `;
+}
+
+function saveTxEdit(id) {
+  const t = TXS.find(x=>String(x.id)===String(id));
+  if(!t) return;
+  t.desc = document.getElementById('ed-desc-'+id).value;
+  t.amount = parseFloat(document.getElementById('ed-amt-'+id).value)||0;
+  t.type = document.getElementById('ed-type-'+id).value;
+  t.shop = document.getElementById('ed-shop-'+id).value;
+  save(); renderLedger(); renderDash();
+}
+
+function delTx(id) {
+  if(!confirm('Delete this entry?')) return;
+  TXS=TXS.filter(t=>String(t.id)!==String(id));
+  save(); renderLedger(); renderDash();
+}
+
+// ══════════════════════════════════════
+// REPORTS
+// ══════════════════════════════════════
+function renderReports() {
+  // Month tabs
+  const months=[];
+  const seen=new Set();
+  TXS.forEach(t=>{const m=t.date?.substring(0,7); if(m&&!seen.has(m)){seen.add(m);months.push(m);}});
+  const now=new Date().toISOString().substring(0,7);
+  if(!seen.has(now)) months.push(now);
+  months.sort().reverse();
+
+  const mt=document.getElementById('month-tabs');
+  mt.innerHTML=months.slice(0,6).map((m,i)=>`<div class="month-chip${i===0?' on':''}" onclick="showMonth('${m}',this)">${fmtMonth(m)}</div>`).join('');
+  if(months.length) showMonth(months[0], mt.querySelector('.month-chip'));
+
+  // Supplier risk
+  const sl=document.getElementById('sup-list');
+  sl.innerHTML=Object.entries(SBAL).sort((a,b)=>b[1]-a[1]).map(([n,b])=>{
+    const risk=b>80000?'critical':b>50000?'high':b>20000?'medium':'clear';
+    const col=risk==='critical'?'var(--red)':risk==='high'?'var(--yellow)':risk==='medium'?'var(--yellow)':'var(--green)';
+    return `<div class="sup-item">
+      <div><div class="sup-name">${n}</div></div>
+      <div style="display:flex;align-items:center;gap:8px">
+        <span class="risk-badge ${risk}">${risk.toUpperCase()}</span>
+        <span class="sup-bal" style="color:${col}">₹${fmt(b)}</span>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function showMonth(m, el) {
+  document.querySelectorAll('.month-chip').forEach(c=>c.classList.remove('on'));
+  el.classList.add('on');
+  const txs=TXS.filter(t=>t.date?.startsWith(m));
+  const shops=Object.keys(CFG.shops);
+  const pl=document.getElementById('pl-content');
+  if(!txs.length){pl.innerHTML='<div class="empty">No entries for this month</div>';return;}
+  const ts=sumType(txs,'sales'), te=sumType(txs,'expense'), tp=sumType(txs,'payment'), tn=ts-te-tp;
+  let html=`<table class="pl-table">
+    <thead><tr><th>Shop</th><th>Sales</th><th>Expenses</th><th>Net</th></tr></thead><tbody>`;
+  shops.forEach(sid=>{
+    const stxs=txs.filter(t=>t.shop===sid);
+    const ss=sumType(stxs,'sales'),se=sumType(stxs,'expense')+sumType(stxs,'payment'),sn=ss-se;
+    html+=`<tr><td>${CFG.shops[sid].icon} ${CFG.shops[sid].name}</td><td style="color:var(--green)">+₹${fmt(ss)}</td><td style="color:var(--red)">-₹${fmt(se)}</td><td style="color:${sn>=0?'var(--green)':'var(--red)'};font-weight:700">${sn>=0?'+':''}₹${fmt(sn)}</td></tr>`;
+  });
+  html+=`<tr><td><b>TOTAL</b></td><td style="color:var(--green)"><b>+₹${fmt(ts)}</b></td><td style="color:var(--red)"><b>-₹${fmt(te+tp)}</b></td><td style="color:${tn>=0?'var(--green)':'var(--red)'}"><b>${tn>=0?'+':''}₹${fmt(tn)}</b></td></tr>`;
+  html+='</tbody></table>';
+  pl.innerHTML=html;
+}
+
+function fmtMonth(m) {
+  const [y,mo]=m.split('-');
+  return ['','Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][parseInt(mo)]+' '+y;
+}
+
+// ══════════════════════════════════════
+// HELPERS
+// ══════════════════════════════════════
+function filterByShop(txs){ return activeShop==='all'?txs:txs.filter(t=>t.shop===activeShop); }
+function sumType(txs,type){ return txs.filter(t=>t.type===type).reduce((s,t)=>s+(t.amount||0),0); }
+function fmt(n){ return Number(n||0).toLocaleString('en-IN',{maximumFractionDigits:0}); }
+function esc(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function save(){ localStorage.setItem('slv_txs',JSON.stringify(TXS)); localStorage.setItem('slv_sup',JSON.stringify(SBAL)); }
+
+// ══════════════════════════════════════
+// SETTINGS
+// ══════════════════════════════════════
+function initSettings() {
+  const shops = CFG.shops;
+  const ed = document.getElementById('shop-name-editor');
+  if(!ed) return;
+  ed.innerHTML = Object.entries(shops).map(([k,v])=>`
+    <div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--border)">
+      <span style="font-size:20px">${v.icon}</span>
+      <div class="fg" style="flex:1">
+        <label>Shop ${k.replace('s','')}</label>
+        <input type="text" id="sname-${k}" value="${v.name}" style="font-size:14px;padding:8px 10px">
+      </div>
+    </div>
+  `).join('');
+  // Load saved script URL
+  const urlInput = document.getElementById('script-url-input');
+  if(urlInput) urlInput.value = APPS_SCRIPT_URL || '';
+}
+
+function saveShopNames() {
+  const shops = CFG.shops;
+  ['s1','s2','s3','s4'].forEach(k=>{
+    const inp = document.getElementById('sname-'+k);
+    if(inp && shops[k]) shops[k].name = inp.value.trim() || shops[k].name;
+  });
+  localStorage.setItem('slv_shops', JSON.stringify(shops));
+  // Update shop strip chips
+  document.querySelectorAll('.shop-chip').forEach(c=>{
+    const cls = [...c.classList].find(x=>x.match(/^s[1-4]$/));
+    if(cls && shops[cls]) c.innerHTML = shops[cls].icon+' '+shops[cls].name;
+  });
+  renderDash();
+  alert('✅ Shop names saved!');
+}
+
+function saveScriptUrl() {
+  const url = document.getElementById('script-url-input').value.trim();
+  if(!url){ alert('Please enter the Apps Script URL'); return; }
+  APPS_SCRIPT_URL = url;
+  localStorage.setItem('slv_script_url', url);
+  document.getElementById('script-status').textContent = '✅ URL saved! Sheets sync is now active.';
+  document.getElementById('script-status').style.color = 'var(--green)';
+}
+
+function copyScript() {
+  const code = `function doPost(e) {
+  var data = JSON.parse(e.postData.contents);
+  var ss = SpreadsheetApp.openById(data.sheetId);
+  var sheet = ss.getSheetByName('Ledger') || ss.insertSheet('Ledger');
+  if(sheet.getLastRow()===0){
+    sheet.appendRow(['Date','Shop','Type','Description','Amount','Reference','Supplier','Added On']);
+  }
+  data.rows.forEach(function(row){ sheet.appendRow(row); });
+  return ContentService.createTextOutput('OK');
+}`;
+  navigator.clipboard.writeText(code).then(()=>alert('✅ Script copied! Paste in Google Apps Script.')).catch(()=>alert('Copy manually from the box above.'));
+}
+</script>
+</body>
+</html>
