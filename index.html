@@ -335,7 +335,7 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--blue);ba
           <div class="fg"><label>Shop</label><select id="sc-shop"></select></div>
         </div>
         <div class="uzone" id="dropzone">
-          <input type="file" accept="image/*" capture="environment" id="fileInput" onchange="onFile(this)">
+          <input type="file" accept="image/*" id="fileInput" onchange="onFile(this)">
           <div style="font-size:32px;margin-bottom:6px">📒</div>
           <div style="font-weight:700;font-size:14px;color:var(--green);margin-bottom:3px">Tap to Upload Photo</div>
           <div style="font-size:11px;color:var(--muted)">JPG · PNG · HEIC</div>
@@ -687,19 +687,38 @@ async function startApp(user){
   document.getElementById('m-date').value=today();
   document.getElementById('bd-date').value=today();
   subscribeData();
+  showToast('✅ Connected to cloud!');
 }
 
 // ══════════════════════════════════════
 // REAL-TIME SUBSCRIPTIONS
 // ══════════════════════════════════════
 function subscribeData(){
-  // Transactions
-  let txq=db.collection('transactions').where('userId','==',currentUser.uid).orderBy('createdAt','desc').limit(500);
-  unsubs.push(txq.onSnapshot(s=>{TXS=s.docs.map(d=>({id:d.id,...d.data()}));renderDash();renderLedger();}));
+  // Transactions — no orderBy to avoid index requirement, sort client side
+  unsubs.push(db.collection('transactions').where('userId','==',currentUser.uid)
+    .onSnapshot(s=>{
+      TXS=s.docs.map(d=>({id:d.id,...d.data()}))
+        .sort((a,b)=>(b.date||'').localeCompare(a.date||''));
+      renderDash();renderLedger();
+    }, err=>{
+      console.error('TX error:',err);
+      showToast('⚠️ Data load error: '+err.message,'warn');
+    }));
+
   // Suppliers
-  unsubs.push(db.collection('suppliers').where('userId','==',currentUser.uid).onSnapshot(s=>{SUPS=s.docs.map(d=>({id:d.id,...d.data()}));renderSuppliers();buildSupSelects();}));
-  // Bills
-  unsubs.push(db.collection('sup_bills').where('userId','==',currentUser.uid).orderBy('createdAt','desc').limit(300).onSnapshot(s=>{BILLS=s.docs.map(d=>({id:d.id,...d.data()}));renderSuppliers();}));
+  unsubs.push(db.collection('suppliers').where('userId','==',currentUser.uid)
+    .onSnapshot(s=>{
+      SUPS=s.docs.map(d=>({id:d.id,...d.data()}));
+      renderSuppliers();buildSupSelects();
+    }));
+
+  // Bills — no orderBy
+  unsubs.push(db.collection('sup_bills').where('userId','==',currentUser.uid)
+    .onSnapshot(s=>{
+      BILLS=s.docs.map(d=>({id:d.id,...d.data()}))
+        .sort((a,b)=>(b.date||'').localeCompare(a.date||''));
+      renderSuppliers();
+    }));
 }
 
 // ══════════════════════════════════════
@@ -1017,6 +1036,7 @@ async function confirmEntries(){
   document.getElementById('done-msg').textContent=`✅ ${scanEntries.length} entries saved to Firebase cloud!`;
   document.getElementById('done-summary').innerHTML=`<div class="crow"><span>Entries</span><span>${scanEntries.length}</span></div><div class="crow"><span>Sales</span><span style="color:var(--green)">+₹${fmt(s)}</span></div><div class="crow"><span>Expenses</span><span style="color:var(--red)">-₹${fmt(ex)}</span></div><div class="crow"><span>Payments</span><span style="color:var(--yellow)">-₹${fmt(py)}</span></div><div class="crow"><span>Net</span><span style="color:${net>=0?'var(--green)':'var(--red)'}">${net>=0?'+':''}₹${fmt(net)}</span></div>`;
   showPhase('done'); setStep(4);
+  showToast('✅ '+scanEntries.length+' entries saved to cloud!');
 }
 
 // ══════════════════════════════════════
@@ -1036,7 +1056,7 @@ async function addManual(){
   if(type==='payment'&&supplier){const sup=SUPS.find(x=>x.name===supplier);if(sup) await db.collection('sup_bills').add({userId:currentUser.uid,supplierId:sup.id,supplierName:sup.name,type:'payment',amount,date,ref:ref2,note,createdAt:firebase.firestore.FieldValue.serverTimestamp()});}
   ['m-amount','m-desc','m-ref','m-note'].forEach(id=>document.getElementById(id).value='');
   document.querySelectorAll('.cat-btn').forEach(b=>b.classList.remove('sel'));
-  alert('✅ Saved!');
+  showToast('✅ Entry saved to cloud!');
 }
 
 // ══════════════════════════════════════
@@ -1182,7 +1202,7 @@ function showMonth(m,el){
 async function loadAuditLog(){
   const el=document.getElementById('audit-log');if(!el) return;
   try{
-    const snap=await db.collection('audit').where('userId','==',currentUser.uid).orderBy('at','desc').limit(20).get();
+    const snap=await db.collection('audit').where('userId','==',currentUser.uid).limit(20).get();
     const logs=snap.docs.map(d=>d.data());
     if(!logs.length){el.innerHTML='<div class="empty">No audit logs yet</div>';return;}
     el.innerHTML=logs.map(l=>`<div class="alog-item">
@@ -1219,6 +1239,19 @@ function openModal(id){document.getElementById(id).classList.add('on')}
 function closeModal(id){document.getElementById(id).classList.remove('on')}
 document.querySelectorAll('.mover').forEach(o=>o.addEventListener('click',e=>{if(e.target===o)o.classList.remove('on')}));
 function st(txs,type){return txs.filter(t=>t.type===type).reduce((s,t)=>s+(t.amount||0),0)}
+
+function showToast(msg, type='ok'){
+  let t=document.getElementById('toast');
+  if(!t){
+    t=document.createElement('div');t.id='toast';
+    t.style.cssText='position:fixed;bottom:90px;left:50%;transform:translateX(-50%);padding:10px 18px;border-radius:20px;font-size:13px;font-weight:600;font-family:var(--sans);z-index:9999;transition:opacity .3s;max-width:300px;text-align:center';
+    document.body.appendChild(t);
+  }
+  t.textContent=msg;
+  t.style.background=type==='ok'?'#059669':type==='warn'?'#d97706':'#dc2626';
+  t.style.color='#fff';t.style.opacity='1';
+  clearTimeout(t._to);t._to=setTimeout(()=>t.style.opacity='0',3000);
+}
 function fmt(n){return Number(n||0).toLocaleString('en-IN',{maximumFractionDigits:0})}
 function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}
 function today(){return new Date().toISOString().split('T')[0]}
