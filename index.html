@@ -1019,24 +1019,73 @@ function updateConfBtn(){
 
 async function confirmEntries(){
   if(scanEntries.some(e=>e.doubt)) return;
+  const btn=document.getElementById('confirm-btn');
+  btn.disabled=true; btn.textContent='⏳ Saving...';
+
   let s=0,ex=0,py=0;
-  const batch=db.batch();
-  scanEntries.forEach(e=>{
-    const ref=db.collection('transactions').doc();
-    batch.set(ref,{userId:currentUser.uid,date:e.date,shop:e.shop,type:e.type,amount:e.amount||0,desc:e.desc||'',category:e.category||'',ref:e.ref||'',supplier:e.supplier||null,source:'scan',by:currentUser.displayName||currentUser.email,createdAt:firebase.firestore.FieldValue.serverTimestamp()});
-    if(e.type==='sales') s+=e.amount||0;
-    else if(e.type==='expense') ex+=e.amount||0;
-    else if(e.type==='payment'){py+=e.amount||0;if(e.supplier){const sup=SUPS.find(x=>x.name===e.supplier);if(sup){const br=db.collection('sup_bills').doc();batch.set(br,{userId:currentUser.uid,supplierId:sup.id,supplierName:sup.name,type:'payment',amount:e.amount||0,date:e.date,ref:e.ref||'',note:'Scan',createdAt:firebase.firestore.FieldValue.serverTimestamp()});}}}
-  });
-  // Audit log
-  const aref=db.collection('audit').doc();
-  batch.set(aref,{userId:currentUser.uid,by:currentUser.displayName||currentUser.email,action:'scan_save',count:scanEntries.length,at:firebase.firestore.FieldValue.serverTimestamp()});
-  await batch.commit();
-  const net=s-ex-py;
-  document.getElementById('done-msg').textContent=`✅ ${scanEntries.length} entries saved to Firebase cloud!`;
-  document.getElementById('done-summary').innerHTML=`<div class="crow"><span>Entries</span><span>${scanEntries.length}</span></div><div class="crow"><span>Sales</span><span style="color:var(--green)">+₹${fmt(s)}</span></div><div class="crow"><span>Expenses</span><span style="color:var(--red)">-₹${fmt(ex)}</span></div><div class="crow"><span>Payments</span><span style="color:var(--yellow)">-₹${fmt(py)}</span></div><div class="crow"><span>Net</span><span style="color:${net>=0?'var(--green)':'var(--red)'}">${net>=0?'+':''}₹${fmt(net)}</span></div>`;
-  showPhase('done'); setStep(4);
-  showToast('✅ '+scanEntries.length+' entries saved to cloud!');
+  try{
+    // Save one by one — more reliable than batch
+    for(const e of scanEntries){
+      await db.collection('transactions').add({
+        userId: currentUser.uid,
+        date: e.date||today(),
+        shop: e.shop||'s1',
+        type: e.type||'expense',
+        amount: e.amount||0,
+        desc: e.desc||'',
+        category: e.category||'',
+        billRef: e.ref||'',
+        supplier: e.supplier||null,
+        source: 'scan',
+        by: currentUser.displayName||currentUser.email||'user',
+        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+      });
+      if(e.type==='sales') s+=e.amount||0;
+      else if(e.type==='expense') ex+=e.amount||0;
+      else if(e.type==='payment'){
+        py+=e.amount||0;
+        if(e.supplier){
+          const sup=SUPS.find(x=>x.name===e.supplier);
+          if(sup){
+            await db.collection('sup_bills').add({
+              userId:currentUser.uid, supplierId:sup.id,
+              supplierName:sup.name, type:'payment',
+              amount:e.amount||0, date:e.date||today(),
+              billRef:e.ref||'', note:'From scan',
+              createdAt:firebase.firestore.FieldValue.serverTimestamp()
+            });
+          }
+        }
+      }
+    }
+
+    // Audit log
+    await db.collection('audit').add({
+      userId:currentUser.uid,
+      by:currentUser.displayName||currentUser.email||'user',
+      action:'scan_save',
+      count:scanEntries.length,
+      at:firebase.firestore.FieldValue.serverTimestamp()
+    });
+
+    const net=s-ex-py;
+    document.getElementById('done-msg').textContent=`✅ ${scanEntries.length} entries saved to Firebase cloud!`;
+    document.getElementById('done-summary').innerHTML=`
+      <div class="crow"><span>Entries</span><span>${scanEntries.length}</span></div>
+      <div class="crow"><span>Sales</span><span style="color:var(--green)">+₹${fmt(s)}</span></div>
+      <div class="crow"><span>Expenses</span><span style="color:var(--red)">-₹${fmt(ex)}</span></div>
+      <div class="crow"><span>Payments</span><span style="color:var(--yellow)">-₹${fmt(py)}</span></div>
+      <div class="crow"><span>Net</span><span style="color:${net>=0?'var(--green)':'var(--red)'}">${net>=0?'+':''}₹${fmt(net)}</span></div>`;
+    showPhase('done'); setStep(4);
+    showToast('✅ Saved to cloud!');
+  }catch(err){
+    console.error('Save error:',err);
+    btn.disabled=false; btn.textContent='✓ Confirm & Save '+scanEntries.length+' Entries';
+    showToast('❌ Save failed: '+err.message,'bad');
+    alert('Save failed: '+err.message+'
+
+Please check your internet connection and try again.');
+  }
 }
 
 // ══════════════════════════════════════
@@ -1045,18 +1094,67 @@ async function confirmEntries(){
 function toggleSup(){ document.getElementById('sup-row').style.display=document.getElementById('m-type').value==='payment'?'grid':'none'; }
 
 async function addManual(){
-  const date=document.getElementById('m-date').value,shop=document.getElementById('m-shop').value,
-    type=document.getElementById('m-type').value,amount=parseFloat(document.getElementById('m-amount').value),
-    desc=document.getElementById('m-desc').value.trim(),ref2=document.getElementById('m-ref').value.trim(),
-    note=document.getElementById('m-note').value.trim(),supplier=type==='payment'?document.getElementById('m-supplier').value:null;
-  if(!date||!amount||!desc){alert('Fill Date, Amount & Description');return;}
-  await db.collection('transactions').add({userId:currentUser.uid,date,shop,type,amount,desc,ref:ref2,note,supplier,source:'manual',by:currentUser.displayName||currentUser.email,createdAt:firebase.firestore.FieldValue.serverTimestamp()});
-  // Audit
-  await db.collection('audit').add({userId:currentUser.uid,by:currentUser.displayName||currentUser.email,action:'manual_add',desc:`${type} ₹${amount} - ${desc}`,at:firebase.firestore.FieldValue.serverTimestamp()});
-  if(type==='payment'&&supplier){const sup=SUPS.find(x=>x.name===supplier);if(sup) await db.collection('sup_bills').add({userId:currentUser.uid,supplierId:sup.id,supplierName:sup.name,type:'payment',amount,date,ref:ref2,note,createdAt:firebase.firestore.FieldValue.serverTimestamp()});}
-  ['m-amount','m-desc','m-ref','m-note'].forEach(id=>document.getElementById(id).value='');
-  document.querySelectorAll('.cat-btn').forEach(b=>b.classList.remove('sel'));
-  showToast('✅ Entry saved to cloud!');
+  const date=document.getElementById('m-date').value;
+  const shop=document.getElementById('m-shop').value;
+  const type=document.getElementById('m-type').value;
+  const amount=parseFloat(document.getElementById('m-amount').value);
+  const desc=document.getElementById('m-desc').value.trim();
+  const ref2=document.getElementById('m-ref').value.trim();
+  const note=document.getElementById('m-note').value.trim();
+  const supplier=type==='payment'?document.getElementById('m-supplier')?.value:null;
+
+  if(!date){showToast('❌ Select a date','bad');return;}
+  if(!amount||amount<=0){showToast('❌ Enter valid amount','bad');return;}
+  if(!desc){showToast('❌ Enter description','bad');return;}
+
+  const btn=document.querySelector('#pane-entry .btn.G');
+  if(btn){btn.disabled=true;btn.textContent='⏳ Saving...';}
+
+  try{
+    await db.collection('transactions').add({
+      userId: currentUser.uid,
+      date, shop, type,
+      amount, desc,
+      billRef: ref2,
+      note, supplier: supplier||null,
+      source: 'manual',
+      by: currentUser.displayName||currentUser.email||'user',
+      createdAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+
+    // Audit
+    await db.collection('audit').add({
+      userId:currentUser.uid,
+      by:currentUser.displayName||currentUser.email||'user',
+      action:'manual_add',
+      desc:`${type} ₹${amount} - ${desc}`,
+      at:firebase.firestore.FieldValue.serverTimestamp()
+    });
+
+    // Supplier bill if payment
+    if(type==='payment'&&supplier){
+      const sup=SUPS.find(x=>x.name===supplier);
+      if(sup){
+        await db.collection('sup_bills').add({
+          userId:currentUser.uid, supplierId:sup.id,
+          supplierName:sup.name, type:'payment',
+          amount, date, billRef:ref2, note,
+          createdAt:firebase.firestore.FieldValue.serverTimestamp()
+        });
+      }
+    }
+
+    ['m-amount','m-desc','m-ref','m-note'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+    document.querySelectorAll('.cat-btn').forEach(b=>b.classList.remove('sel'));
+    showToast('✅ Entry saved to cloud!');
+    if(btn){btn.disabled=false;btn.textContent='+ Add Entry';}
+
+  }catch(err){
+    console.error('Manual save error:',err);
+    showToast('❌ Failed: '+err.message,'bad');
+    alert('Save failed: '+err.message);
+    if(btn){btn.disabled=false;btn.textContent='+ Add Entry';}
+  }
 }
 
 // ══════════════════════════════════════
