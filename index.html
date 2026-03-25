@@ -251,6 +251,15 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--blue);ba
 #toast.info{background:var(--blue);color:#fff}
 
 .empty{text-align:center;padding:28px;color:var(--muted);font-size:13px}
+.dtab{padding:6px 14px;border-radius:20px;font-size:12px;font-weight:600;cursor:pointer;border:1.5px solid var(--border);background:var(--soft);color:var(--muted);white-space:nowrap;transition:all .2s;font-family:var(--sans)}
+.dtab.on{background:var(--green);color:#fff;border-color:var(--green)}
+.bar-wrap{background:var(--border);border-radius:10px;height:8px;overflow:hidden;margin-top:4px;flex:1}
+.bar-fill{height:100%;border-radius:10px;transition:width .5s}
+.cat-row{display:flex;align-items:center;gap:9px;padding:8px 0;border-bottom:1px solid var(--border)}
+.cat-row:last-child{border:none}
+.pbar{display:flex;align-items:center;gap:8px;flex:1}
+.add-shop-btn{display:flex;align-items:center;justify-content:center;gap:6px;padding:6px 14px;border-radius:20px;font-size:12px;font-weight:600;cursor:pointer;border:2px dashed var(--border);background:transparent;color:var(--muted);white-space:nowrap;transition:all .2s;font-family:var(--sans)}
+.add-shop-btn:hover{border-color:var(--green);color:var(--green)}
 .sect-title{font-size:11px;font-weight:700;color:var(--muted);letter-spacing:.8px;text-transform:uppercase;margin:14px 0 8px}
 </style>
 </head>
@@ -412,6 +421,20 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--blue);ba
   <div class="pane" id="pane-ledger">
     <div class="card">
       <div class="chd">📋 All Transactions</div>
+      <!-- Date Filter Tabs -->
+      <div style="display:flex;gap:6px;margin-bottom:12px;overflow-x:auto;scrollbar-width:none;padding-bottom:2px">
+        <button class="dtab on" onclick="setDate('today',this)">📅 Today</button>
+        <button class="dtab" onclick="setDate('yesterday',this)">⏮ Yesterday</button>
+        <button class="dtab" onclick="setDate('week',this)">📆 This Week</button>
+        <button class="dtab" onclick="setDate('month',this)">🗓 This Month</button>
+        <button class="dtab" onclick="setDate('all',this)">📋 All</button>
+      </div>
+      <div id="custom-date-row" style="display:none;margin-bottom:10px">
+        <div class="frow">
+          <div class="fgrp"><label>From</label><input type="date" id="f-from" onchange="renderLedger()"></div>
+          <div class="fgrp"><label>To</label><input type="date" id="f-to" onchange="renderLedger()"></div>
+        </div>
+      </div>
       <div class="frow" style="margin-bottom:10px">
         <div class="fgrp"><label>Shop</label><select id="f-shop" onchange="renderLedger()"><option value="all">All Shops</option></select></div>
         <div class="fgrp"><label>Type</label>
@@ -429,6 +452,34 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--blue);ba
           <tbody id="ltbody"></tbody>
         </table>
       </div>
+    </div>
+  </div>
+
+  <!-- ── SHOP ANALYSIS ── -->
+  <div class="pane" id="pane-shop-detail">
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px">
+      <button onclick="goPane('dash')" style="background:var(--soft);border:1px solid var(--border);border-radius:8px;padding:7px 12px;font-size:13px;cursor:pointer">← Back</button>
+      <div style="flex:1">
+        <div style="font-weight:800;font-size:17px" id="sd-title">Shop Analysis</div>
+        <div style="font-size:11px;color:var(--muted)" id="sd-sub">360° Report</div>
+      </div>
+    </div>
+    <!-- Period selector -->
+    <div style="display:flex;gap:6px;margin-bottom:14px;overflow-x:auto;scrollbar-width:none">
+      <button class="dtab on" onclick="setSdPeriod('today',this)">Today</button>
+      <button class="dtab" onclick="setSdPeriod('yesterday',this)">Yesterday</button>
+      <button class="dtab" onclick="setSdPeriod('week',this)">This Week</button>
+      <button class="dtab" onclick="setSdPeriod('month',this)">This Month</button>
+      <button class="dtab" onclick="setSdPeriod('year',this)">This Year</button>
+    </div>
+    <div class="sgrid" id="sd-stats"></div>
+    <div class="card"><div class="chd">📊 Income vs Expense</div><div id="sd-breakdown"></div></div>
+    <div class="card"><div class="chd">🗂️ Category Breakdown</div><div id="sd-cats"></div></div>
+    <div class="card"><div class="chd">📋 Recent Transactions</div><div id="sd-txs"></div></div>
+    <div class="card" id="sd-cat-editor-card">
+      <div class="chd">✏️ Edit Expense Categories</div>
+      <div id="sd-cat-editor"></div>
+      <button class="btn G" onclick="saveShopCats()" style="margin-top:8px">✓ Save Categories</button>
     </div>
   </div>
 
@@ -544,6 +595,21 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--blue);ba
     </div>
     <div class="frow full"><div class="fgrp"><label>Note</label><input type="text" id="bl-note" placeholder="Optional"></div></div>
     <button class="btn G" onclick="saveBill()">✓ Save Entry</button>
+  </div>
+</div>
+
+<!-- ══ ADD NEW SHOP MODAL ══ -->
+<div class="mover" id="add-shop-modal">
+  <div class="modal">
+    <div class="mhd">Add New Shop <button class="mclose" onclick="closeM('add-shop-modal')">✕</button></div>
+    <div class="alert info">New shop will be added to your dashboard and all dropdowns.</div>
+    <div class="frow full"><div class="fgrp"><label>Shop Name</label><input type="text" id="ns-name" placeholder="e.g. Fruit Market, New Veg Shop"></div></div>
+    <div class="frow full"><div class="fgrp"><label>Icon (emoji)</label><input type="text" id="ns-icon" placeholder="🏪" maxlength="2"></div></div>
+    <div class="frow full"><div class="fgrp"><label>Initial Expense Categories (comma separated)</label>
+      <input type="text" id="ns-cats" placeholder="Rent/EB, Labour, Transport, Other"></div></div>
+    <div class="frow full"><div class="fgrp"><label>Initial Sales Categories (comma separated)</label>
+      <input type="text" id="ns-scats" placeholder="Cash Sale, Gpay, Wholesale"></div></div>
+    <button class="btn G" onclick="addNewShop()">+ Add Shop</button>
   </div>
 </div>
 
@@ -788,9 +854,12 @@ function buildUI(){
   }
   Object.entries(SHOPS).forEach(([k,v])=>{
     if(isOwner||uShop==='all'||uShop===k){
-      strip.innerHTML += `<div class="schip ${k}" onclick="setShop('${k}',this)">${v.icon} ${v.name}</div>`;
+      strip.innerHTML += `<div class="schip ${k}" onclick="setShop('${k}',this);if(event.detail>1)openShopDetail('${k}')" ondblclick="openShopDetail('${k}')">${v.icon} ${v.name}</div>`;
     }
   });
+  if(isOwner){
+    strip.innerHTML += `<button class="add-shop-btn" onclick="openM('add-shop-modal')">+ New Shop</button>`;
+  }
 
   // Shop selects everywhere
   const shopOpts = (all=false)=> (all?'<option value="all">All Shops</option>':'') +
@@ -1024,29 +1093,69 @@ async function startScan(){
 
   const sys=`You are an expert OCR agent for a Tamil Nadu vegetable and retail shop ledger.
 Shop: ${sName}. Known suppliers: ${sups}. Categories: ${allCats}.
-Extract ALL entries from the handwritten ledger image.
-For each entry identify: type (sales/expense/payment/unknown), description, amount in rupees, date if visible, supplier if payment, bill/ref number.
-If any entry is UNCLEAR or AMBIGUOUS, set doubt=true and write a specific question in doubtQ.
-Return ONLY valid JSON — no markdown, no explanation:
-{"note_date":"YYYY-MM-DD or null","entries":[{"id":1,"type":"sales","desc":"description","amount":1234,"category":"matching category or null","ref":null,"supplier":null,"doubt":false,"doubtQ":null}],"summary":"one line summary"}
-Set amount to null if completely illegible. Extract every single line item.`;
+
+CRITICAL RULES:
+1. Extract EVERY entry from the image — do not skip any line
+2. Keep ALL text descriptions SHORT (max 20 characters)
+3. Return COMPACT JSON — no spaces, no extra whitespace
+4. If the ledger has many entries (20+), batch them efficiently
+5. amount must be a NUMBER (not string). null only if completely illegible
+6. doubt=true only for genuinely unclear entries
+
+Return ONLY this JSON structure (no markdown, no explanation):
+{"note_date":"YYYY-MM-DD or null","entries":[{"id":1,"type":"sales","desc":"short desc","amount":1234,"category":null,"ref":null,"supplier":null,"doubt":false,"doubtQ":null}],"summary":"X entries found"}
+
+Types: sales (income/cash received), expense (cost/salary/bill), payment (paid to supplier), unknown`;
 
   try{
     const res=await fetch('https://api.anthropic.com/v1/messages',{
       method:'POST',
       headers:{'Content-Type':'application/json','x-api-key':key,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
-      body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:2000,system:sys,
+      body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:4000,system:sys,
         messages:[{role:'user',content:[
           {type:'image',source:{type:'base64',media_type:'image/jpeg',data:_scanImg}},
-          {type:'text',text:`Extract all ledger entries. Shop: ${sName}. Today: ${today()}. Return JSON only.`}
+          {type:'text',text:`Extract all ledger entries. Shop: ${sName}. Today: ${today()}. Return JSON only. Keep descriptions short (max 30 chars each).`}
         ]}]})
     });
     const data=await res.json();
     if(data.error) throw new Error(data.error.message);
-    const raw=data.content?.map(c=>c.text||'').join('').replace(/```json|```/g,'').trim();
-    const parsed=JSON.parse(raw);
+
+    // Robust JSON extraction & repair
+    let raw = data.content?.map(c=>c.text||'').join('') || '';
+    raw = raw.replace(/```json|```/g,'').trim();
+
+    // Try to extract just the JSON object
+    const jsonStart = raw.indexOf('{');
+    const jsonEnd   = raw.lastIndexOf('}');
+    if(jsonStart >= 0 && jsonEnd > jsonStart){
+      raw = raw.substring(jsonStart, jsonEnd+1);
+    }
+
+    let parsed;
+    try {
+      parsed = JSON.parse(raw);
+    } catch(jsonErr) {
+      // Try to recover truncated JSON — extract entries array manually
+      console.warn('JSON parse failed, attempting recovery:', jsonErr.message);
+      const entriesMatch = raw.match(/"entries"\s*:\s*\[[\s\S]*?\]/);
+      if(entriesMatch){
+        try{
+          const partialEntries = JSON.parse('[' + entriesMatch[0].split('[').slice(1).join('[').split(']')[0] + ']');
+          parsed = { note_date: null, entries: partialEntries, summary: 'Partial extraction ('+partialEntries.length+' entries recovered)' };
+        } catch(e2){
+          throw new Error('Too many entries to scan at once. Please scan page by page (max ~30 entries per photo).');
+        }
+      } else {
+        throw new Error('JSON parse failed: '+jsonErr.message+'. Try scanning fewer entries at a time.');
+      }
+    }
+
+    if(!parsed.entries || !Array.isArray(parsed.entries)){
+      throw new Error('No entries found in image. Make sure the photo is clear and well-lit.');
+    }
+
     _scanEntries=parsed.entries.map(e=>({...e,date:parsed.note_date||today(),shop,resolved:false}));
-    showPhase('review'); setStep(3); renderEntries(parsed.summary);
+    showPhase('review'); setStep(3); renderEntries(parsed.summary||`${_scanEntries.length} entries extracted`);
   }catch(err){
     showPhase('upload'); setStep(1);
     toast('Scan failed: '+err.message,'bad');
@@ -1300,7 +1409,7 @@ async function addEntry(){
 // ═══════════════════════════════════════════
 function renderLedger(){
   const fs=v('f-shop')||'all', ft=v('f-type')||'all';
-  let txs=[...TXS];
+  let txs = getDateFilter()([...TXS]);
   if(fs!=='all') txs=txs.filter(t=>t.shop===fs);
   if(ft!=='all') txs=txs.filter(t=>t.type===ft);
   if(_shop!=='all') txs=txs.filter(t=>t.shop===_shop);
@@ -1531,6 +1640,7 @@ function goPane(name,btn){
   if(name==='report') renderReports();
   if(name==='sup'){ renderSups(); buildSupSelects(); }
   if(name==='entry') loadQB();
+  if(name==='ledger') renderLedger();
 }
 
 // ═══════════════════════════════════════════
@@ -1547,7 +1657,208 @@ function esc(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;')
 function today(){ return new Date().toISOString().split('T')[0]; }
 
 // ═══════════════════════════════════════════
+// DATE FILTER LOGIC
+// ═══════════════════════════════════════════
+let _dateMode = 'today';
+
+function setDate(mode, el){
+  _dateMode = mode;
+  document.querySelectorAll('.dtab').forEach(b=>b.classList.remove('on'));
+  el.classList.add('on');
+  const cr = document.getElementById('custom-date-row');
+  if(cr) cr.style.display = mode==='custom' ? 'block' : 'none';
+  renderLedger();
+}
+
+function getDateFilter(){
+  const t = today();
+  const yesterday = new Date(); yesterday.setDate(yesterday.getDate()-1);
+  const yStr = yesterday.toISOString().split('T')[0];
+  const weekStart = new Date(); weekStart.setDate(weekStart.getDate()-6);
+  const wStr = weekStart.toISOString().split('T')[0];
+  const monthStart = t.substring(0,7)+'-01';
+
+  if(_dateMode==='today')     return txs => txs.filter(t=>t.date===today());
+  if(_dateMode==='yesterday') return txs => txs.filter(t=>t.date===yStr);
+  if(_dateMode==='week')      return txs => txs.filter(t=>t.date>=wStr);
+  if(_dateMode==='month')     return txs => txs.filter(t=>t.date>=monthStart);
+  if(_dateMode==='custom'){
+    const from = document.getElementById('f-from')?.value||'';
+    const to   = document.getElementById('f-to')?.value||today();
+    return txs => txs.filter(t=>(!from||t.date>=from)&&t.date<=to);
+  }
+  return txs => txs; // all
+}
+
+// ═══════════════════════════════════════════
+// SHOP DETAIL — 360° ANALYSIS
+// ═══════════════════════════════════════════
+let _sdShop = 's1', _sdPeriod = 'today';
+
+function openShopDetail(shopKey){
+  _sdShop = shopKey;
+  _sdPeriod = 'today';
+  const shop = SHOPS[shopKey];
+  document.getElementById('sd-title').textContent = shop?.icon+' '+shop?.name || 'Shop';
+  document.getElementById('sd-sub').textContent = '360° Analysis Report';
+
+  // Reset period tabs
+  document.querySelectorAll('#pane-shop-detail .dtab').forEach((b,i)=>b.classList.toggle('on',i===0));
+
+  // Build category editor for this shop
+  buildSdCatEditor(shopKey);
+  renderShopDetail();
+  goPane('shop-detail');
+}
+
+function setSdPeriod(mode, el){
+  _sdPeriod = mode;
+  document.querySelectorAll('#pane-shop-detail .dtab').forEach(b=>b.classList.remove('on'));
+  el.classList.add('on');
+  renderShopDetail();
+}
+
+function getSdTxs(){
+  let txs = TXS.filter(t=>t.shop===_sdShop);
+  const t=today();
+  const yesterday = new Date(); yesterday.setDate(yesterday.getDate()-1);
+  const yStr = yesterday.toISOString().split('T')[0];
+  const weekStart = new Date(); weekStart.setDate(weekStart.getDate()-6);
+  const wStr = weekStart.toISOString().split('T')[0];
+  const monthStart = t.substring(0,7)+'-01';
+  const yearStart = t.substring(0,4)+'-01-01';
+  if(_sdPeriod==='today')     return txs.filter(x=>x.date===t);
+  if(_sdPeriod==='yesterday') return txs.filter(x=>x.date===yStr);
+  if(_sdPeriod==='week')      return txs.filter(x=>x.date>=wStr);
+  if(_sdPeriod==='month')     return txs.filter(x=>x.date>=monthStart);
+  if(_sdPeriod==='year')      return txs.filter(x=>x.date>=yearStart);
+  return txs;
+}
+
+function renderShopDetail(){
+  const txs = getSdTxs();
+  const s=sum(txs,'sales'), e=sum(txs,'expense'), p=sum(txs,'payment'), net=s-e-p;
+
+  // Stats
+  document.getElementById('sd-stats').innerHTML = `
+    <div class="stile"><div class="slbl">Sales</div><div class="sval cg">₹${fmt(s)}</div></div>
+    <div class="stile"><div class="slbl">Expense</div><div class="sval cr">₹${fmt(e+p)}</div></div>
+    <div class="stile"><div class="slbl">Net</div><div class="sval ${net>=0?'cg':'cr'}">${net>=0?'+':''}₹${fmt(net)}</div></div>
+    <div class="stile"><div class="slbl">Entries</div><div class="sval cb">${txs.length}</div></div>`;
+
+  // Breakdown bars
+  const total = s + e + p || 1;
+  document.getElementById('sd-breakdown').innerHTML = `
+    <div style="margin-bottom:10px">
+      <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px"><span style="color:var(--green)">💚 Sales</span><span style="font-family:var(--mono);font-weight:700">₹${fmt(s)}</span></div>
+      <div class="bar-wrap"><div class="bar-fill" style="width:${(s/total*100).toFixed(1)}%;background:var(--green)"></div></div>
+    </div>
+    <div style="margin-bottom:10px">
+      <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px"><span style="color:var(--red)">🔴 Expenses</span><span style="font-family:var(--mono);font-weight:700">₹${fmt(e)}</span></div>
+      <div class="bar-wrap"><div class="bar-fill" style="width:${(e/total*100).toFixed(1)}%;background:var(--red)"></div></div>
+    </div>
+    <div>
+      <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px"><span style="color:var(--yellow)">🟡 Payments</span><span style="font-family:var(--mono);font-weight:700">₹${fmt(p)}</span></div>
+      <div class="bar-wrap"><div class="bar-fill" style="width:${(p/total*100).toFixed(1)}%;background:var(--yellow)"></div></div>
+    </div>`;
+
+  // Category breakdown
+  const catMap = {};
+  txs.filter(t=>t.type==='expense'||t.type==='payment').forEach(t=>{
+    const k = t.category||t.desc||'Other';
+    catMap[k] = (catMap[k]||0) + (t.amount||0);
+  });
+  const catTotal = Object.values(catMap).reduce((a,b)=>a+b,0)||1;
+  const sortedCats = Object.entries(catMap).sort((a,b)=>b[1]-a[1]).slice(0,8);
+  document.getElementById('sd-cats').innerHTML = sortedCats.length
+    ? sortedCats.map(([k,v])=>`
+        <div class="cat-row">
+          <div style="font-size:12px;min-width:90px;max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(k)}</div>
+          <div class="pbar">
+            <div class="bar-wrap"><div class="bar-fill" style="width:${(v/catTotal*100).toFixed(0)}%;background:var(--red)"></div></div>
+          </div>
+          <div style="font-family:var(--mono);font-size:12px;font-weight:700;color:var(--red);min-width:70px;text-align:right">₹${fmt(v)}</div>
+        </div>`).join('')
+    : '<div class="empty">No expense data</div>';
+
+  // Recent txs
+  const recent = txs.slice(0,10);
+  document.getElementById('sd-txs').innerHTML = recent.length
+    ? `<table class="lt" style="font-size:11px">
+        <thead><tr><th>Date</th><th>Type</th><th>Description</th><th>Amount</th></tr></thead>
+        <tbody>${recent.map(t=>`<tr>
+          <td style="font-family:var(--mono);font-size:10px;color:var(--muted)">${t.date||''}</td>
+          <td><span class="tbadge ${t.type}" style="font-size:9px">${(t.type||'').toUpperCase()}</span></td>
+          <td style="max-width:100px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(t.desc||'')}</td>
+          <td style="font-family:var(--mono);font-weight:700;color:${t.type==='sales'?'var(--green)':'var(--red)'}">${t.type==='sales'?'+':'-'}₹${fmt(t.amount)}</td>
+        </tr>`).join('')}</tbody>
+      </table>`
+    : '<div class="empty">No transactions for this period</div>';
+}
+
+// Shop category editor inside shop detail
+function buildSdCatEditor(shopKey){
+  const ed = document.getElementById('sd-cat-editor');
+  if(!ed) return;
+  const cats = CATS[shopKey]||{sales:[],expense:[]};
+  ed.innerHTML = `
+    <div class="fgrp" style="margin-bottom:10px">
+      <label>💚 Sales Categories</label>
+      <input type="text" id="sdc-s-${shopKey}" value="${(cats.sales||[]).join(', ')}" placeholder="Cash, Gpay, Wholesale..." style="font-size:13px">
+    </div>
+    <div class="fgrp">
+      <label>🔴 Expense Categories</label>
+      <input type="text" id="sdc-e-${shopKey}" value="${(cats.expense||[]).join(', ')}" placeholder="Rent, Labour, Transport..." style="font-size:13px">
+    </div>`;
+  document.getElementById('sd-cat-editor-card').style.display = ME?.role==='owner' ? 'block' : 'none';
+}
+
+async function saveShopCats(){
+  const k = _sdShop;
+  if(!CATS[k]) CATS[k]={sales:[],expense:[]};
+  const si = document.getElementById('sdc-s-'+k);
+  const ei = document.getElementById('sdc-e-'+k);
+  if(si) CATS[k].sales = si.value.split(',').map(x=>x.trim()).filter(Boolean);
+  if(ei) CATS[k].expense = ei.value.split(',').map(x=>x.trim()).filter(Boolean);
+  try{
+    await DB.collection('config').doc('main').set({shops:SHOPS,cats:CATS},{merge:true});
+    toast('✅ Categories saved!'); loadQB();
+  }catch(e){ toast('Error: '+e.message,'bad'); }
+}
+
+// ═══════════════════════════════════════════
+// ADD NEW SHOP
+// ═══════════════════════════════════════════
+async function addNewShop(){
+  const name = v('ns-name').trim();
+  const icon = v('ns-icon').trim() || '🏪';
+  const ecats = v('ns-cats').split(',').map(x=>x.trim()).filter(Boolean);
+  const scats = v('ns-scats').split(',').map(x=>x.trim()).filter(Boolean);
+  if(!name){ toast('Enter shop name','warn'); return; }
+
+  // Generate new key
+  const existingKeys = Object.keys(SHOPS);
+  let newKey = 's'+(existingKeys.length+1);
+  while(SHOPS[newKey]) newKey = 's'+(parseInt(newKey.slice(1))+1);
+
+  SHOPS[newKey] = {name, icon, color:'#059669'};
+  CATS[newKey]  = {
+    sales: scats.length ? scats : ['Cash Sale','Gpay','Other'],
+    expense: ecats.length ? ecats : ['Rent/EB','Labour','Other']
+  };
+
+  try{
+    await DB.collection('config').doc('main').set({shops:SHOPS,cats:CATS},{merge:true});
+    ['ns-name','ns-icon','ns-cats','ns-scats'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+    closeM('add-shop-modal');
+    buildUI();
+    toast('✅ '+name+' shop added!');
+  }catch(e){ toast('Error: '+e.message,'bad'); }
+}
+
+// ═══════════════════════════════════════════
 // BOOT — Login shown immediately
+
 // ═══════════════════════════════════════════
 window.onload = () => {
   // Login screen is visible by default (display:flex in CSS)
