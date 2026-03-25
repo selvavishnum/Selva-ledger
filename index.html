@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
 <title>Selva Ledger Pro</title>
-<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&family=Noto+Sans+Tamil:wght@400;500;600;700&display=swap" rel="stylesheet">
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
@@ -166,7 +166,7 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--blue);ba
 .pb{height:100%;width:0%;background:linear-gradient(90deg,var(--green),#34d399);border-radius:10px;transition:width .3s}
 
 /* ENTRY REVIEW CARDS */
-.ecard{background:var(--soft);border:1.5px solid var(--border);border-radius:10px;padding:12px;margin-bottom:8px}
+.ecard{background:var(--soft);border:1.5px solid var(--border);border-radius:10px;padding:12px;margin-bottom:8px;font-family:'Noto Sans Tamil',var(--sans)}
 .ecard.doubt{border-color:var(--yellow);background:var(--yl)}
 .etop{display:flex;align-items:center;gap:6px;margin-bottom:10px;flex-wrap:wrap}
 .eid{font-family:var(--mono);font-size:9px;background:var(--border);padding:2px 6px;border-radius:4px;color:var(--muted)}
@@ -192,7 +192,7 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--blue);ba
 .ltw{overflow-x:auto;-webkit-overflow-scrolling:touch}
 .lt{width:100%;border-collapse:collapse;font-size:12px}
 .lt th{padding:8px 9px;text-align:left;font-size:9px;font-weight:700;color:var(--muted);letter-spacing:1px;text-transform:uppercase;border-bottom:2px solid var(--border);white-space:nowrap}
-.lt td{padding:8px 9px;border-bottom:1px solid var(--border);vertical-align:middle}
+.lt td{padding:8px 9px;border-bottom:1px solid var(--border);vertical-align:middle;font-family:'Noto Sans Tamil',var(--sans)}
 .lt tr:last-child td{border:none}
 .lt tr:hover td{background:var(--soft)}
 
@@ -251,6 +251,9 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--blue);ba
 #toast.info{background:var(--blue);color:#fff}
 
 .empty{text-align:center;padding:28px;color:var(--muted);font-size:13px}
+.lang-btn{background:var(--bl);color:var(--blue);border:1.5px solid var(--blue);border-radius:20px;padding:5px 12px;font-size:12px;font-weight:700;cursor:pointer;font-family:var(--sans);flex-shrink:0;transition:all .2s}
+.lang-btn.ta{background:var(--green);color:#fff;border-color:var(--green)}
+.ta-font{font-family:'Noto Sans Tamil',var(--sans) !important}
 .dtab{padding:6px 14px;border-radius:20px;font-size:12px;font-weight:600;cursor:pointer;border:1.5px solid var(--border);background:var(--soft);color:var(--muted);white-space:nowrap;transition:all .2s;font-family:var(--sans)}
 .dtab.on{background:var(--green);color:#fff;border-color:var(--green)}
 .bar-wrap{background:var(--border);border-radius:10px;height:8px;overflow:hidden;margin-top:4px;flex:1}
@@ -308,6 +311,7 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--blue);ba
       <div class="tuser" id="t-user">Loading...</div>
     </div>
     <span class="trole" id="t-role">Owner</span>
+    <button class="lang-btn" id="lang-btn" onclick="toggleLang()">தமிழ்</button>
     <button class="tmenu" onclick="openM('menu-modal')">☰</button>
   </div>
 
@@ -323,9 +327,9 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--blue);ba
       <div class="stile"><div class="slbl">Net Balance</div><div class="sval" id="d-net">₹0</div></div>
       <div class="stile"><div class="slbl">Overdraft</div><div class="sval cy" id="d-od">NONE</div></div>
     </div>
-    <div class="card"><div class="chd">🏪 Shop Summary</div><div id="shop-cards"></div></div>
-    <div class="card"><div class="chd">⚠️ Supplier Alerts</div><div id="d-sup-alerts"></div></div>
-    <div class="card"><div class="chd">📊 Daily Reconciliation</div><div id="d-recon"></div></div>
+    <div class="card"><div class="chd" id="chd-shop-summary">🏪 Shop Summary</div><div id="shop-cards"></div></div>
+    <div class="card"><div class="chd" id="chd-sup-alerts">⚠️ Supplier Alerts</div><div id="d-sup-alerts"></div></div>
+    <div class="card"><div class="chd" id="chd-recon">📊 Daily Reconciliation</div><div id="d-recon"></div></div>
   </div>
 
   <!-- ── SCAN ── -->
@@ -338,20 +342,20 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--blue);ba
     </div>
     <div id="ph-upload">
       <div class="card">
-        <div class="chd">📷 Upload Handwritten Note</div>
+        <div class="chd" id="chd-upload">📷 Upload Handwritten Note</div>
         <div class="frow full" style="margin-bottom:12px">
           <div class="fgrp"><label>Select Shop</label><select id="sc-shop"></select></div>
         </div>
         <div class="uzone" id="dropzone">
           <input type="file" accept="image/*" id="fileInp" onchange="onFile(this)">
           <div style="font-size:36px;margin-bottom:8px">📒</div>
-          <div style="font-weight:700;font-size:14px;color:var(--green);margin-bottom:4px">Tap to Select Photo</div>
-          <div style="font-size:11px;color:var(--muted)">Gallery or Camera — JPG · PNG · HEIC</div>
+          <div style="font-weight:700;font-size:14px;color:var(--green);margin-bottom:4px" id="lbl-tap-select">Tap to Select Photo</div>
+          <div style="font-size:11px;color:var(--muted)" id="lbl-gallery">Gallery or Camera — JPG · PNG · HEIC</div>
         </div>
         <div id="prev-area" style="display:none">
           <img class="imgprev" id="prev-img" src="" alt="">
-          <button class="btn G" onclick="startScan()">🔍 Scan & Extract Entries</button>
-          <button class="btn S" onclick="resetScan()">✕ Change Photo</button>
+          <button class="btn G" onclick="startScan()" id="btn-scan-extract">🔍 Scan & Extract Entries</button>
+          <button class="btn S" onclick="resetScan()" id="btn-change-photo">✕ Change Photo</button>
         </div>
       </div>
     </div>
@@ -366,11 +370,11 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--blue);ba
     </div>
     <div id="ph-review" style="display:none">
       <div class="card">
-        <div class="chd">✏️ Review & Edit Entries</div>
+        <div class="chd" id="chd-review">✏️ Review & Edit Entries</div>
         <div id="scan-alert" class="alert ok" style="display:none"></div>
         <div id="entries-list"></div>
         <button class="btn G" id="confirm-btn">✓ Confirm & Save All</button>
-        <button class="btn S" onclick="resetScan()">↩ Scan Again</button>
+        <button class="btn S" onclick="resetScan()" id="btn-scan-again">↩ Scan Again</button>
       </div>
     </div>
     <div id="ph-done" style="display:none">
@@ -378,8 +382,8 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--blue);ba
         <div class="chd">✅ Saved to Cloud!</div>
         <div class="alert ok" id="done-msg">Entries saved successfully!</div>
         <div class="cbox" id="done-box"></div>
-        <button class="btn G" onclick="goPane('dash')">📊 View Dashboard</button>
-        <button class="btn S" onclick="resetScan()">📷 Scan Another Page</button>
+        <button class="btn G" onclick="goPane('dash')" id="btn-view-dash">📊 View Dashboard</button>
+        <button class="btn S" onclick="resetScan()" id="btn-scan-more">📷 Scan Another Page</button>
       </div>
     </div>
   </div>
@@ -387,7 +391,7 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--blue);ba
   <!-- ── MANUAL ENTRY ── -->
   <div class="pane" id="pane-entry">
     <div class="card">
-      <div class="chd">✏️ Add Transaction</div>
+      <div class="chd" id="chd-add-tx">✏️ Add Transaction</div>
       <div class="frow">
         <div class="fgrp"><label>Date</label><input type="date" id="m-date"></div>
         <div class="fgrp"><label>Shop</label><select id="m-shop" onchange="loadQB()"></select></div>
@@ -413,21 +417,29 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--blue);ba
         <div class="fgrp"><label>Bill / Ref No</label><input type="text" id="m-ref" placeholder="Optional"></div>
         <div class="fgrp"><label>Note</label><input type="text" id="m-note" placeholder="Optional"></div>
       </div>
-      <button class="btn G" id="entry-btn" onclick="addEntry()">+ Add Entry</button>
+      <button class="btn G" id="btn-add-entry" onclick="addEntry()">+ Add Entry</button>
     </div>
   </div>
 
   <!-- ── LEDGER ── -->
   <div class="pane" id="pane-ledger">
     <div class="card">
-      <div class="chd">📋 All Transactions</div>
+      <div class="chd" id="chd-all-tx">📋 All Transactions</div>
       <!-- Date Filter Tabs -->
-      <div style="display:flex;gap:6px;margin-bottom:12px;overflow-x:auto;scrollbar-width:none;padding-bottom:2px">
+      <div style="display:flex;gap:6px;margin-bottom:10px;overflow-x:auto;scrollbar-width:none;padding-bottom:2px">
         <button class="dtab on" onclick="setDate('today',this)">📅 Today</button>
         <button class="dtab" onclick="setDate('yesterday',this)">⏮ Yesterday</button>
         <button class="dtab" onclick="setDate('week',this)">📆 This Week</button>
         <button class="dtab" onclick="setDate('month',this)">🗓 This Month</button>
+        <button class="dtab" onclick="setDate('custom',this)">📆 Custom</button>
         <button class="dtab" onclick="setDate('all',this)">📋 All</button>
+      </div>
+      <div id="custom-date-row" style="display:none;margin-bottom:10px;background:var(--gl);border:1px solid #6ee7b7;border-radius:10px;padding:10px">
+        <div style="font-size:10px;font-weight:700;color:var(--green);letter-spacing:.8px;margin-bottom:8px">SELECT DATE RANGE</div>
+        <div class="frow">
+          <div class="fgrp"><label>From Date</label><input type="date" id="f-from" onchange="renderLedger()"></div>
+          <div class="fgrp"><label>To Date</label><input type="date" id="f-to" onchange="renderLedger()"></div>
+        </div>
       </div>
       <div id="custom-date-row" style="display:none;margin-bottom:10px">
         <div class="frow">
@@ -500,18 +512,18 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--blue);ba
 
   <!-- BOTTOM NAV -->
   <div class="bnav" id="bnav">
-    <button class="nbt on" onclick="goPane('dash',this)"><span class="ni">📊</span><span class="nl">Dashboard</span></button>
-    <button class="nbt" id="nav-scan" onclick="goPane('scan',this)"><span class="ni">📷</span><span class="nl">Scan</span></button>
-    <button class="nbt" id="nav-entry" onclick="goPane('entry',this)"><span class="ni">✏️</span><span class="nl">Entry</span></button>
-    <button class="nbt" onclick="goPane('ledger',this)"><span class="ni">📋</span><span class="nl">Ledger</span></button>
-    <button class="nbt" onclick="goPane('sup',this)"><span class="ni">🏷️</span><span class="nl">Suppliers</span></button>
+    <button class="nbt on" onclick="goPane('dash',this)"><span class="ni">📊</span><span class="nl" id="nav-lbl-dash">Dashboard</span></button>
+    <button class="nbt" id="nav-scan" onclick="goPane('scan',this)"><span class="ni">📷</span><span class="nl" id="nav-lbl-scan">Scan</span></button>
+    <button class="nbt" id="nav-entry" onclick="goPane('entry',this)"><span class="ni">✏️</span><span class="nl" id="nav-lbl-entry">Entry</span></button>
+    <button class="nbt" onclick="goPane('ledger',this)"><span class="ni">📋</span><span class="nl" id="nav-lbl-ledger">Ledger</span></button>
+    <button class="nbt" onclick="goPane('sup',this)"><span class="ni">🏷️</span><span class="nl" id="nav-lbl-sup">Suppliers</span></button>
   </div>
 </div>
 
 <!-- ══ MENU MODAL ══ -->
 <div class="mover" id="menu-modal">
   <div class="modal">
-    <div class="mhd">Settings <button class="mclose" onclick="closeM('menu-modal')">✕</button></div>
+    <div class="mhd" id="mhd-settings">Settings <button class="mclose" onclick="closeM('menu-modal')">✕</button></div>
     <div style="background:var(--soft);border-radius:10px;padding:12px;margin-bottom:14px">
       <div style="font-weight:700;font-size:15px" id="mu-name">-</div>
       <div style="font-size:12px;color:var(--muted)" id="mu-email">-</div>
@@ -572,6 +584,22 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--blue);ba
       <div class="fgrp"><label>Phone</label><input type="tel" id="sn-ph" placeholder="Optional"></div>
     </div>
     <button class="btn G" onclick="addSupplier()">+ Add Supplier</button>
+  </div>
+</div>
+
+<!-- ══ EDIT SUPPLIER MODAL ══ -->
+<div class="mover" id="edit-sup-modal">
+  <div class="modal">
+    <div class="mhd">Edit Supplier <button class="mclose" onclick="closeM('edit-sup-modal')">✕</button></div>
+    <input type="hidden" id="es-id">
+    <div class="frow full"><div class="fgrp"><label>Supplier Name</label><input type="text" id="es-name" placeholder="Supplier name"></div></div>
+    <div class="frow full"><div class="fgrp"><label>Linked Shop</label><select id="es-shop"></select></div></div>
+    <div class="frow">
+      <div class="fgrp"><label>Opening Balance (₹)</label><input type="number" id="es-ob" placeholder="0"></div>
+      <div class="fgrp"><label>Phone</label><input type="tel" id="es-ph" placeholder="Optional"></div>
+    </div>
+    <button class="btn G" onclick="saveSupEdit()">✓ Save Changes</button>
+    <button class="btn R" onclick="deleteSupplier()">🗑️ Delete Supplier</button>
   </div>
 </div>
 
@@ -797,6 +825,7 @@ async function startApp(user){
   document.getElementById('bl-date').value = today();
 
   buildUI();
+  applyLang();
   subscribeData();
 }
 
@@ -1091,21 +1120,28 @@ async function startScan(){
   const sups=SUPS.map(s=>s.name).join(', ')||'Mr Vilas,Lemon,Mr Carrot,Inji,PMN,Siva Annan';
   const allCats=[...(CATS[shop]?.sales||[]),...(CATS[shop]?.expense||[])].join(', ');
 
-  const sys=`You are an expert OCR agent for a Tamil Nadu vegetable and retail shop ledger.
+  const sys=`You are an expert bilingual OCR agent for a Tamil Nadu shop ledger. The ledger may contain Tamil text, English text, or both mixed together.
+
 Shop: ${sName}. Known suppliers: ${sups}. Categories: ${allCats}.
 
+LANGUAGE RULES:
+- If an entry description is written in Tamil script, keep it in Tamil (e.g., "காய்கறி விற்பனை", "சம்பளம்", "பால் பில்")
+- If written in English/numbers, keep in English
+- Mixed entries: keep as written
+- Tamil numbers (௧,௨,௩...) convert to Arabic (1,2,3...)
+
 CRITICAL RULES:
-1. Extract EVERY entry from the image — do not skip any line
-2. Keep ALL text descriptions SHORT (max 20 characters)
-3. Return COMPACT JSON — no spaces, no extra whitespace
-4. If the ledger has many entries (20+), batch them efficiently
-5. amount must be a NUMBER (not string). null only if completely illegible
-6. doubt=true only for genuinely unclear entries
+1. Extract EVERY single entry — do not skip any line
+2. Keep descriptions SHORT (max 25 characters)
+3. Return COMPACT JSON — minimize whitespace
+4. amount must be a NUMBER. null only if completely illegible
+5. doubt=true only for genuinely unclear amount or type
+6. For Tamil text doubts, write doubtQ in both Tamil and English
 
-Return ONLY this JSON structure (no markdown, no explanation):
-{"note_date":"YYYY-MM-DD or null","entries":[{"id":1,"type":"sales","desc":"short desc","amount":1234,"category":null,"ref":null,"supplier":null,"doubt":false,"doubtQ":null}],"summary":"X entries found"}
+Return ONLY this JSON (no markdown):
+{"note_date":"YYYY-MM-DD or null","entries":[{"id":1,"type":"sales","desc":"desc or தமிழ்","amount":1234,"category":null,"ref":null,"supplier":null,"doubt":false,"doubtQ":null}],"summary":"X entries"}
 
-Types: sales (income/cash received), expense (cost/salary/bill), payment (paid to supplier), unknown`;
+Types: sales=விற்பனை/income, expense=செலவு/cost, payment=சப்ளையர் பேமெண்ட், unknown`;
 
   try{
     const res=await fetch('https://api.anthropic.com/v1/messages',{
@@ -1521,9 +1557,64 @@ function renderSups(){
           <span>${b.type==='bill'?'📋 Bill':'💰 Payment'}${b.billRef?' #'+b.billRef:''}</span>
           <span style="font-family:var(--mono);font-weight:700;color:${b.type==='bill'?'var(--red)':'var(--green)'}">${b.type==='bill'?'+':'-'}₹${fmt(b.amount)}</span>
         </div>`).join(''):''}
-      <button class="btn B sm" style="margin-top:10px;width:100%" onclick="openAddBill('${sup.id}')">+ Add Bill / Payment</button>
+      <div style="display:flex;gap:7px;margin-top:10px">
+        <button class="btn B sm" style="flex:1;margin-top:0" onclick="openAddBill('${sup.id}')">+ Bill / Payment</button>
+        <button class="btn S sm" style="flex:none;margin-top:0;padding:7px 12px" onclick="openEditSup('${sup.id}')" title="Edit">✏️</button>
+      </div>
     </div>`;
   }).join('');
+}
+
+// ── SUPPLIER EDIT / DELETE ──
+function openEditSup(supId){
+  const sup = SUPS.find(s=>s.id===supId);
+  if(!sup) return;
+  document.getElementById('es-id').value = supId;
+  document.getElementById('es-name').value = sup.name||'';
+  document.getElementById('es-ob').value = sup.openingBalance||0;
+  document.getElementById('es-ph').value = sup.phone||'';
+  // Build shop select
+  const esSh = document.getElementById('es-shop');
+  if(esSh){
+    esSh.innerHTML = Object.entries(SHOPS).map(([k,v])=>`<option value="${k}" ${sup.shop===k?'selected':''}>${v.icon} ${v.name}</option>`).join('');
+  }
+  openM('edit-sup-modal');
+}
+
+async function saveSupEdit(){
+  const id = document.getElementById('es-id').value;
+  const name = document.getElementById('es-name').value.trim();
+  const shop = document.getElementById('es-shop').value;
+  const ob = parseFloat(document.getElementById('es-ob').value)||0;
+  const ph = document.getElementById('es-ph').value.trim();
+  if(!name){ toast('Enter supplier name','warn'); return; }
+  try{
+    await DB.collection('suppliers').doc(id).update({
+      name, shop, openingBalance:ob, phone:ph,
+      updatedAt:firebase.firestore.FieldValue.serverTimestamp()
+    });
+    closeM('edit-sup-modal');
+    toast('✅ Supplier updated!');
+  }catch(e){ toast('Error: '+e.message,'bad'); }
+}
+
+async function deleteSupplier(){
+  const id = document.getElementById('es-id').value;
+  const sup = SUPS.find(s=>s.id===id);
+  if(!confirm(`Delete supplier "${sup?.name}"?
+
+This will also delete all their bills and payments.`)) return;
+  try{
+    // Delete supplier
+    await DB.collection('suppliers').doc(id).delete();
+    // Delete all their bills
+    const bills = await DB.collection('sup_bills').where('supplierId','==',id).get();
+    const batch = DB.batch();
+    bills.docs.forEach(d => batch.delete(d.ref));
+    await batch.commit();
+    closeM('edit-sup-modal');
+    toast('✅ Supplier deleted!');
+  }catch(e){ toast('Error: '+e.message,'bad'); }
 }
 
 async function addSupplier(){
@@ -1663,10 +1754,24 @@ let _dateMode = 'today';
 
 function setDate(mode, el){
   _dateMode = mode;
-  document.querySelectorAll('.dtab').forEach(b=>b.classList.remove('on'));
+  // Only update tabs in ledger pane
+  const ledgerPane = document.getElementById('pane-ledger');
+  ledgerPane?.querySelectorAll('.dtab').forEach(b=>b.classList.remove('on'));
   el.classList.add('on');
   const cr = document.getElementById('custom-date-row');
-  if(cr) cr.style.display = mode==='custom' ? 'block' : 'none';
+  if(cr){
+    cr.style.display = mode==='custom' ? 'block' : 'none';
+    if(mode==='custom'){
+      // Set default range: last 10 days
+      const to = today();
+      const from = new Date(); from.setDate(from.getDate()-10);
+      const fromStr = from.toISOString().split('T')[0];
+      const fFrom = document.getElementById('f-from');
+      const fTo   = document.getElementById('f-to');
+      if(fFrom && !fFrom.value) fFrom.value = fromStr;
+      if(fTo   && !fTo.value)   fTo.value   = to;
+    }
+  }
   renderLedger();
 }
 
@@ -1678,14 +1783,14 @@ function getDateFilter(){
   const wStr = weekStart.toISOString().split('T')[0];
   const monthStart = t.substring(0,7)+'-01';
 
-  if(_dateMode==='today')     return txs => txs.filter(t=>t.date===today());
-  if(_dateMode==='yesterday') return txs => txs.filter(t=>t.date===yStr);
-  if(_dateMode==='week')      return txs => txs.filter(t=>t.date>=wStr);
-  if(_dateMode==='month')     return txs => txs.filter(t=>t.date>=monthStart);
+  if(_dateMode==='today')     return txs => txs.filter(x=>x.date===t);
+  if(_dateMode==='yesterday') return txs => txs.filter(x=>x.date===yStr);
+  if(_dateMode==='week')      return txs => txs.filter(x=>x.date>=wStr);
+  if(_dateMode==='month')     return txs => txs.filter(x=>x.date>=monthStart);
   if(_dateMode==='custom'){
     const from = document.getElementById('f-from')?.value||'';
-    const to   = document.getElementById('f-to')?.value||today();
-    return txs => txs.filter(t=>(!from||t.date>=from)&&t.date<=to);
+    const to   = document.getElementById('f-to')?.value||t;
+    return txs => txs.filter(x=> x.date && (!from||x.date>=from) && x.date<=to);
   }
   return txs => txs; // all
 }
@@ -1857,7 +1962,232 @@ async function addNewShop(){
 }
 
 // ═══════════════════════════════════════════
+// BILINGUAL SYSTEM — TAMIL + ENGLISH
+// ═══════════════════════════════════════════
+let _lang = localStorage.getItem('slv_lang') || 'en';
+
+const LANG = {
+  en: {
+    // Topbar
+    appName: 'Selva Ledger Pro',
+    // Nav
+    dashboard: 'Dashboard', scan: 'Scan', entry: 'Entry',
+    ledger: 'Ledger', suppliers: 'Suppliers',
+    // Dashboard
+    todaySales: 'Today Sales', todayExpense: 'Today Expense',
+    netBalance: 'Net Balance', overdraft: 'Overdraft',
+    shopSummary: '🏪 Shop Summary', supplierAlerts: '⚠️ Supplier Alerts',
+    reconciliation: '📊 Daily Reconciliation',
+    noEntries: 'No entries today — scan or add manually',
+    balanced: '✓ Net +₹{net} — Balanced',
+    overDraftMsg: '✗ Overdraft ₹{net} — Check expenses!',
+    allControl: '✓ All supplier balances under control',
+    noEntriesToday: 'No entries today yet',
+    // Scan
+    uploadNote: '📷 Upload Handwritten Note',
+    selectShop: 'Select Shop',
+    tapToSelect: 'Tap to Select Photo',
+    galleryCamera: 'Gallery or Camera — JPG · PNG · HEIC',
+    scanExtract: '🔍 Scan & Extract Entries',
+    changePhoto: '✕ Change Photo',
+    reviewEdit: '✏️ Review & Edit Entries',
+    confirmSaveAll: '✓ Confirm & Save All',
+    scanAgain: '↩ Scan Again',
+    savedCloud: '✅ Saved to Cloud!',
+    viewDash: '📊 View Dashboard',
+    scanMore: '📷 Scan Another Page',
+    // Entry
+    addTransaction: '✏️ Add Transaction',
+    date: 'Date', shop: 'Shop', type: 'Type', amount: 'Amount (₹)',
+    description: 'Description', billRef: 'Bill / Ref No', note: 'Note',
+    addEntry: '+ Add Entry',
+    quickSelect: 'Quick Select',
+    salesIncome: '💚 Sales / Income',
+    expense: '🔴 Expense',
+    supplierPayment: '🟡 Supplier Payment',
+    supplierName: 'Supplier Name',
+    // Ledger
+    allTransactions: '📋 All Transactions',
+    allShops: 'All Shops', allTypes: 'All Types',
+    sales: '💚 Sales', payment: '🟡 Payment',
+    noTransactions: 'No transactions yet',
+    // Date tabs
+    today: '📅 Today', yesterday: '⏮ Yesterday',
+    thisWeek: '📆 This Week', thisMonth: '🗓 This Month',
+    custom: '📆 Custom', all: '📋 All',
+    fromDate: 'From Date', toDate: 'To Date',
+    // Supplier
+    addSupplier: '+ Add Supplier', billPayment: '📋 Bill / Payment',
+    noSuppliers: 'No suppliers yet — click "+ Add Supplier"',
+    openingBal: 'Opening Balance', purchases: '+ Purchases', paid: '− Paid',
+    closingBal: 'Closing Balance', recentEntries: 'RECENT ENTRIES',
+    addBillPayment: '+ Bill / Payment',
+    newBill: '📋 New Bill (Purchase)', paymentMade: '💰 Payment Made to Supplier',
+    // Settings
+    settings: 'Settings', claudeApiKey: '🔑 Claude API Key (for OCR)',
+    shopNames: '🏪 Shop Names', expCats: '🗂️ Expense Categories per Shop',
+    staff: '👥 Staff', signOut: '🚪 Sign Out',
+    saveApiKey: '✓ Save API Key', saveNames: '✓ Save Shop Names',
+    saveCats: '✓ Save Categories',
+    // Reports
+    monthlyPL: '📈 Monthly P&L Report',
+    auditLog: '📋 Audit Log',
+    // Roles
+    owner: '👑 Owner', manager: '👔 Manager', cashier: '💵 Cashier',
+  },
+  ta: {
+    // Topbar
+    appName: 'செல்வா லெட்ஜர் புரோ',
+    // Nav
+    dashboard: 'டாஷ்போர்டு', scan: 'ஸ்கேன்', entry: 'என்ட்ரி',
+    ledger: 'லெட்ஜர்', suppliers: 'சப்ளையர்',
+    // Dashboard
+    todaySales: 'இன்று விற்பனை', todayExpense: 'இன்று செலவு',
+    netBalance: 'நிகர இருப்பு', overdraft: 'அதிக செலவு',
+    shopSummary: '🏪 கடை சுருக்கம்', supplierAlerts: '⚠️ சப்ளையர் எச்சரிக்கை',
+    reconciliation: '📊 தினசரி சரிபார்ப்பு',
+    noEntries: 'இன்று என்ட்ரி இல்லை — ஸ்கேன் அல்லது மேனுவல் சேர்க்கவும்',
+    balanced: '✓ நிகர +₹{net} — சரியாக உள்ளது',
+    overDraftMsg: '✗ அதிக செலவு ₹{net} — சரிபாருங்கள்!',
+    allControl: '✓ அனைத்து சப்ளையர் இருப்பும் சரியாக உள்ளது',
+    noEntriesToday: 'இன்று என்ட்ரி இல்லை',
+    // Scan
+    uploadNote: '📷 கையெழுத்து நோட்டு போடுங்கள்',
+    selectShop: 'கடை தேர்வு',
+    tapToSelect: 'போட்டோ தேர்வு செய்ய தட்டுங்கள்',
+    galleryCamera: 'கேலரி அல்லது கேமரா — JPG · PNG · HEIC',
+    scanExtract: '🔍 ஸ்கேன் & என்ட்ரி எடு',
+    changePhoto: '✕ போட்டோ மாற்று',
+    reviewEdit: '✏️ என்ட்ரி சரிபார்த்து திருத்து',
+    confirmSaveAll: '✓ உறுதிப்படுத்தி சேமி',
+    scanAgain: '↩ மீண்டும் ஸ்கேன்',
+    savedCloud: '✅ கிளவுட்டில் சேமிக்கப்பட்டது!',
+    viewDash: '📊 டாஷ்போர்டு பார்',
+    scanMore: '📷 இன்னொரு பக்கம் ஸ்கேன்',
+    // Entry
+    addTransaction: '✏️ என்ட்ரி சேர்க்கவும்',
+    date: 'தேதி', shop: 'கடை', type: 'வகை', amount: 'தொகை (₹)',
+    description: 'விவரம்', billRef: 'பில் / Ref எண்', note: 'குறிப்பு',
+    addEntry: '+ என்ட்ரி சேர்',
+    quickSelect: 'விரைவு தேர்வு',
+    salesIncome: '💚 விற்பனை / வருமானம்',
+    expense: '🔴 செலவு',
+    supplierPayment: '🟡 சப்ளையர் பேமெண்ட்',
+    supplierName: 'சப்ளையர் பெயர்',
+    // Ledger
+    allTransactions: '📋 அனைத்து பரிவர்த்தனைகள்',
+    allShops: 'அனைத்து கடைகள்', allTypes: 'அனைத்து வகைகள்',
+    sales: '💚 விற்பனை', payment: '🟡 பேமெண்ட்',
+    noTransactions: 'பரிவர்த்தனைகள் இல்லை',
+    // Date tabs
+    today: '📅 இன்று', yesterday: '⏮ நேற்று',
+    thisWeek: '📆 இந்த வாரம்', thisMonth: '🗓 இந்த மாதம்',
+    custom: '📆 தேர்வு தேதி', all: '📋 அனைத்தும்',
+    fromDate: 'தொடக்க தேதி', toDate: 'இறுதி தேதி',
+    // Supplier
+    addSupplier: '+ சப்ளையர் சேர்', billPayment: '📋 பில் / பேமெண்ட்',
+    noSuppliers: 'சப்ளையர் இல்லை — "+ சப்ளையர் சேர்" கிளிக் செய்யுங்கள்',
+    openingBal: 'ஆரம்ப இருப்பு', purchases: '+ வாங்கியது', paid: '− செலுத்தியது',
+    closingBal: 'இறுதி இருப்பு', recentEntries: 'சமீபத்திய என்ட்ரிகள்',
+    addBillPayment: '+ பில் / பேமெண்ட்',
+    newBill: '📋 புதிய பில் (வாங்குதல்)', paymentMade: '💰 சப்ளையர்க்கு பேமெண்ட்',
+    // Settings
+    settings: 'அமைப்புகள்', claudeApiKey: '🔑 Claude API கீ (OCR-க்கு)',
+    shopNames: '🏪 கடை பெயர்கள்', expCats: '🗂️ செலவு வகைகள்',
+    staff: '👥 ஊழியர்கள்', signOut: '🚪 வெளியேறு',
+    saveApiKey: '✓ API கீ சேமி', saveNames: '✓ கடை பெயர் சேமி',
+    saveCats: '✓ வகைகள் சேமி',
+    // Reports
+    monthlyPL: '📈 மாத லாப நஷ்ட அறிக்கை',
+    auditLog: '📋 தணிக்கை பதிவு',
+    // Roles
+    owner: '👑 உரிமையாளர்', manager: '👔 மேலாளர்', cashier: '💵 கேஷியர்',
+  }
+};
+
+function T(key, vars={}){
+  let txt = LANG[_lang]?.[key] || LANG['en']?.[key] || key;
+  Object.entries(vars).forEach(([k,v])=>{ txt = txt.replace('{'+k+'}', v); });
+  return txt;
+}
+
+function toggleLang(){
+  _lang = _lang==='en' ? 'ta' : 'en';
+  localStorage.setItem('slv_lang', _lang);
+  applyLang();
+}
+
+function applyLang(){
+  const btn = document.getElementById('lang-btn');
+  if(btn){
+    btn.textContent = _lang==='ta' ? 'English' : 'தமிழ்';
+    btn.classList.toggle('ta', _lang==='ta');
+  }
+  // Tamil font on body when Tamil mode
+  document.body.classList.toggle('ta-font', _lang==='ta');
+
+  // Update all translatable elements
+  const updates = {
+    // Bottom nav
+    'nav-lbl-dash': T('dashboard'), 'nav-lbl-scan': T('scan'),
+    'nav-lbl-entry': T('entry'), 'nav-lbl-ledger': T('ledger'),
+    'nav-lbl-sup': T('suppliers'),
+    // Dashboard sections
+    'lbl-today-sales': T('todaySales'), 'lbl-today-exp': T('todayExpense'),
+    'lbl-net-bal': T('netBalance'), 'lbl-overdraft': T('overdraft'),
+    'chd-shop-summary': T('shopSummary'),
+    'chd-sup-alerts': T('supplierAlerts'),
+    'chd-recon': T('reconciliation'),
+    // Scan
+    'chd-upload': T('uploadNote'),
+    'lbl-select-shop': T('selectShop'),
+    'lbl-tap-select': T('tapToSelect'),
+    'lbl-gallery': T('galleryCamera'),
+    'btn-scan-extract': T('scanExtract'),
+    'btn-change-photo': T('changePhoto'),
+    'chd-review': T('reviewEdit'),
+    'btn-scan-again': T('scanAgain'),
+    'btn-view-dash': T('viewDash'),
+    'btn-scan-more': T('scanMore'),
+    // Entry
+    'chd-add-tx': T('addTransaction'),
+    'lbl-date': T('date'), 'lbl-shop': T('shop'),
+    'lbl-type': T('type'), 'lbl-amount': T('amount'),
+    'lbl-desc': T('description'), 'lbl-ref': T('billRef'),
+    'lbl-note': T('note'), 'btn-add-entry': T('addEntry'),
+    // Ledger
+    'chd-all-tx': T('allTransactions'),
+    // Settings modal
+    'mhd-settings': T('settings'),
+    'lbl-api-key': T('claudeApiKey'),
+    'lbl-shop-names': T('shopNames'),
+    'btn-save-key': T('saveApiKey'),
+    'btn-save-names': T('saveNames'),
+    'btn-save-cats': T('saveCats'),
+    'btn-sign-out': T('signOut'),
+  };
+
+  Object.entries(updates).forEach(([id, text])=>{
+    const el = document.getElementById(id);
+    if(el) el.textContent = text;
+  });
+
+  // Update date tabs
+  const dateTabs = document.querySelectorAll('#pane-ledger .dtab');
+  const dateKeys = ['today','yesterday','thisWeek','thisMonth','custom','all'];
+  dateTabs.forEach((btn,i)=>{ if(dateKeys[i]) btn.textContent=T(dateKeys[i]); });
+
+  // Update f-from / f-to labels
+  const fFromLbl = document.querySelector('label[for="f-from"]');
+  const fToLbl   = document.querySelector('label[for="f-to"]');
+
+  // Force re-render
+  renderDash(); renderLedger(); renderSups();
+}
+
+// ═══════════════════════════════════════════
 // BOOT — Login shown immediately
+
 
 // ═══════════════════════════════════════════
 window.onload = () => {
