@@ -295,6 +295,10 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--blue);ba
       <div class="fg"><label>Full Name</label><input type="text" id="rg-name" placeholder="Your name"></div>
       <div class="fg"><label>Email</label><input type="email" id="rg-email" placeholder="your@email.com"></div>
       <div class="fg"><label>Password</label><input type="password" id="rg-pass" placeholder="Min 6 characters"></div>
+      <div class="fg" style="background:var(--yl);border-radius:8px;padding:10px">
+        <label>Business Code (Staff only — leave empty if you are owner)</label>
+        <input type="text" id="rg-bizcode" placeholder="e.g. ABC12345 — get from owner" style="letter-spacing:2px;font-family:var(--mono)">
+      </div>
       <button class="submit-btn" onclick="registerEmail()">Create Account</button>
       <div class="lswitch">Have account? <span onclick="showLogin()">Sign in</span></div>
     </div>
@@ -321,6 +325,22 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--blue);ba
   <!-- ── DASHBOARD ── -->
   <div class="pane on" id="pane-dash">
     <div class="pill ok" id="d-pill"><div class="pdot"></div><span id="d-msg">Loading...</span></div>
+
+    <!-- Dashboard Date Filter -->
+    <div style="display:flex;gap:6px;margin-bottom:12px;overflow-x:auto;scrollbar-width:none;padding-bottom:2px" id="dash-date-tabs">
+      <button class="dtab on" onclick="setDashDate('today',this)">📅 Today</button>
+      <button class="dtab" onclick="setDashDate('yesterday',this)">⏮ Yesterday</button>
+      <button class="dtab" onclick="setDashDate('week',this)">📆 This Week</button>
+      <button class="dtab" onclick="setDashDate('month',this)">🗓 This Month</button>
+      <button class="dtab" onclick="setDashDate('custom',this)">📆 Custom</button>
+    </div>
+    <div id="dash-custom-row" style="display:none;margin-bottom:10px;background:var(--gl);border:1px solid #6ee7b7;border-radius:10px;padding:10px">
+      <div class="frow">
+        <div class="fgrp"><label>From Date</label><input type="date" id="dash-from" onchange="renderDash()"></div>
+        <div class="fgrp"><label>To Date</label><input type="date" id="dash-to" onchange="renderDash()"></div>
+      </div>
+    </div>
+
     <div class="sgrid">
       <div class="stile"><div class="slbl">Today Sales</div><div class="sval cg" id="d-sales">₹0</div></div>
       <div class="stile"><div class="slbl">Today Expense</div><div class="sval cr" id="d-exp">₹0</div></div>
@@ -546,9 +566,14 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--blue);ba
       <div id="cat-ed"></div>
       <button class="btn B" onclick="saveCats()">✓ Save Categories</button>
 
-      <div class="sect-title" style="margin-top:16px">👥 Staff</div>
+      <div class="sect-title" style="margin-top:16px">👥 Staff Management</div>
+      <div class="alert info" style="margin-bottom:10px">
+        <b>Share this Business Code with your staff:</b><br>
+        <div style="font-family:var(--mono);font-size:16px;font-weight:800;letter-spacing:2px;color:var(--blue);margin-top:6px;padding:8px;background:#fff;border-radius:6px;text-align:center" id="biz-code-display">Loading...</div>
+        <div style="font-size:11px;margin-top:4px">Staff must enter this code when they first login to join your business</div>
+      </div>
       <div id="staff-wrap"></div>
-      <button class="btn B" onclick="openM('add-staff-modal')">+ Add Staff</button>
+      <button class="btn B" onclick="openM('add-staff-modal')">+ Add Staff Account</button>
     </div>
 
     <button class="btn R" onclick="doLogout()">🚪 Sign Out</button>
@@ -738,16 +763,38 @@ async function loginEmail(){
 
 async function registerEmail(){
   const nm=v('rg-name'), em=v('rg-email'), pw=v('rg-pass');
+  const bizCode = v('rg-bizcode').trim().toUpperCase();
   if(!nm||!em||!pw){ showErr('Fill all fields'); return; }
   if(pw.length<6){ showErr('Password min 6 characters'); return; }
   try{
-    const c = await AUTH.createUserWithEmailAndPassword(em,pw);
-    await c.user.updateProfile({displayName:nm});
-    // First user becomes owner
-    const allUsers = await DB.collection('staff').where('userId','==',c.user.uid).get();
-    await DB.collection('staff').doc(c.user.uid).set({
-      uid:c.user.uid, name:nm, email:em,
-      role:'owner', shop:'all',
+    const cred = await AUTH.createUserWithEmailAndPassword(em,pw);
+    await cred.user.updateProfile({displayName:nm});
+
+    let role='owner', businessId=cred.user.uid, shop='all';
+
+    if(bizCode){
+      // Staff: find owner businessId matching the code
+      const allStaff = await DB.collection('staff').get();
+      let foundBizId = null;
+      allStaff.docs.forEach(d=>{
+        const data=d.data();
+        const uid = data.businessId||data.uid||'';
+        if(uid.slice(0,8).toUpperCase()===bizCode){
+          foundBizId = uid;
+        }
+      });
+      if(foundBizId){
+        businessId=foundBizId; role='cashier'; shop='all';
+      } else {
+        showErr('Business code not found. Check with your owner and try again.');
+        await cred.user.delete();
+        return;
+      }
+    }
+
+    await DB.collection('staff').doc(cred.user.uid).set({
+      uid:cred.user.uid, name:nm, email:em,
+      role, shop, businessId,
       createdAt:firebase.firestore.FieldValue.serverTimestamp()
     });
   }catch(e){ showErr(e.message); }
@@ -773,19 +820,25 @@ function showErr(msg){
 async function startApp(user){
   ME = {uid:user.uid, name:user.displayName||user.email, email:user.email, role:'owner', shop:'all'};
 
-  // Load staff record
+  // Load staff record & determine businessId
   try{
     const sd = await DB.collection('staff').doc(user.uid).get();
-    if(sd.exists){ const d=sd.data(); ME.role=d.role||'owner'; ME.shop=d.shop||'all'; }
-    else{
-      // Auto-create as owner if first time
+    if(sd.exists){
+      const d=sd.data();
+      ME.role=d.role||'owner';
+      ME.shop=d.shop||'all';
+      // businessId = owner's UID (all staff share owner's data space)
+      ME.businessId = d.businessId || user.uid;
+    } else {
+      // First time login = Owner
+      ME.role='owner'; ME.shop='all'; ME.businessId=user.uid;
       await DB.collection('staff').doc(user.uid).set({
         uid:user.uid, name:ME.name, email:ME.email,
-        role:'owner', shop:'all',
+        role:'owner', shop:'all', businessId:user.uid,
         createdAt:firebase.firestore.FieldValue.serverTimestamp()
       });
     }
-  }catch(e){ console.log('Staff load:',e); }
+  }catch(e){ console.log('Staff load:',e); ME.businessId=user.uid; }
 
   // Load config
   try{
@@ -810,6 +863,9 @@ async function startApp(user){
   document.getElementById('mu-name').textContent = ME.name;
   document.getElementById('mu-email').textContent = ME.email;
   document.getElementById('mu-role').textContent = ROLES[ME.role]+' — '+(ME.shop==='all'?'All Shops':(SHOPS[ME.shop]?.name||ME.shop));
+  // Show business code for owner
+  const bizCode = document.getElementById('biz-code-display');
+  if(bizCode) bizCode.textContent = (ME.businessId||ME.uid).slice(0,8).toUpperCase();
 
   // API key status
   const k = localStorage.getItem('slv_key')||'';
@@ -833,38 +889,40 @@ async function startApp(user){
 // REAL-TIME DATA — simple queries, no index
 // ═══════════════════════════════════════════
 function subscribeData(){
-  // Transactions — simple userId filter, sort client-side
+  // KEY FIX: Use businessId so ALL staff share owner's data
+  const BID = ME.businessId || ME.uid;
+  console.log('Subscribing with businessId:', BID, 'role:', ME.role);
+
   _unsubs.push(
     DB.collection('transactions')
-      .where('userId','==',ME.uid)
+      .where('businessId','==',BID)
       .onSnapshot(snap=>{
         TXS = snap.docs.map(d=>({id:d.id,...d.data()}))
-              .sort((a,b)=>((b.date||'')+(b.createdMs||0)+'') > ((a.date||'')+(a.createdMs||0)+'') ? 1 : -1);
-        renderDash();
-        renderLedger();
-      }, err=>{ console.error('TXS:',err); toast('Data error: '+err.code,'bad'); })
+              .sort((a,b)=>(b.date||'')>(a.date||'') ? 1 : -1);
+        renderDash(); renderLedger();
+      }, err=>{
+        console.error('TX error:',err.code, err.message);
+        toast('⚠️ Data load error: '+err.message,'bad');
+      })
   );
 
-  // Suppliers
   _unsubs.push(
     DB.collection('suppliers')
-      .where('userId','==',ME.uid)
+      .where('businessId','==',BID)
       .onSnapshot(snap=>{
         SUPS = snap.docs.map(d=>({id:d.id,...d.data()}));
-        buildSupSelects();
-        renderSups();
-      }, err=>console.error('SUPS:',err))
+        buildSupSelects(); renderSups();
+      }, err=>{ console.error('SUPS error:',err); toast('Supplier error: '+err.code,'bad'); })
   );
 
-  // Supplier bills
   _unsubs.push(
     DB.collection('sup_bills')
-      .where('userId','==',ME.uid)
+      .where('businessId','==',BID)
       .onSnapshot(snap=>{
         BILLS = snap.docs.map(d=>({id:d.id,...d.data()}))
                .sort((a,b)=>(b.date||'')>(a.date||'') ? 1 : -1);
         renderSups();
-      }, err=>console.error('BILLS:',err))
+      }, err=>console.error('BILLS error:',err))
   );
 }
 
@@ -1002,6 +1060,7 @@ async function addStaff(){
     const tempId='staff_'+Date.now();
     await DB.collection('staff').doc(tempId).set({
       uid:tempId, name, email, role, shop,
+      businessId: ME.businessId||ME.uid,  // KEY: links staff to owner's data
       invitedBy:ME.uid, createdAt:firebase.firestore.FieldValue.serverTimestamp()
     });
     ['st-name','st-email'].forEach(id=>{ const el=document.getElementById(id); if(el) el.value=''; });
@@ -1036,9 +1095,10 @@ function pickCat(cat,el){
 // ═══════════════════════════════════════════
 function renderDash(){
   const t=today();
-  let txs = TXS.filter(x=>x.date===t);
+  // Use dashboard date filter
+  let txs = getDashTxs(TXS);
   if(_shop!=='all') txs=txs.filter(x=>x.shop===_shop);
-  if(ME.role!=='owner'&&ME.shop!=='all') txs=TXS.filter(x=>x.date===t&&x.shop===ME.shop);
+  if(ME.role!=='owner'&&ME.shop!=='all') txs=getDashTxs(TXS).filter(x=>x.shop===ME.shop);
 
   const s=sum(txs,'sales'), e=sum(txs,'expense'), p=sum(txs,'payment'), net=s-e-p;
 
@@ -1324,6 +1384,7 @@ async function confirmScan(){
   try{
     for(const entry of _scanEntries){
       const txData={
+        businessId: ME.businessId||ME.uid,
         userId:ME.uid,
         date:entry.date||today(),
         shop:entry.shop||'s1',
@@ -1349,6 +1410,7 @@ async function confirmScan(){
           const sup=SUPS.find(x=>x.name===entry.supplier);
           if(sup){
             await DB.collection('sup_bills').add({
+              businessId: ME.businessId||ME.uid,
               userId:ME.uid, supplierId:sup.id, supplierName:sup.name,
               type:'payment', amount:entry.amount||0,
               date:entry.date||today(), billRef:entry.ref||'',
@@ -1361,6 +1423,7 @@ async function confirmScan(){
 
     // Audit
     await DB.collection('audit').add({
+      businessId: ME.businessId||ME.uid,
       userId:ME.uid, by:ME.name, action:'scan_save',
       count:saved, at:firebase.firestore.FieldValue.serverTimestamp()
     });
@@ -1404,6 +1467,7 @@ async function addEntry(){
 
   try{
     await DB.collection('transactions').add({
+      businessId: ME.businessId||ME.uid,
       userId:ME.uid, date, shop, type, amount:amt, desc,
       billRef:ref, note, supplier,
       source:'manual', by:ME.name,
@@ -1416,6 +1480,7 @@ async function addEntry(){
       const sup=SUPS.find(x=>x.name===supplier);
       if(sup){
         await DB.collection('sup_bills').add({
+          businessId: ME.businessId||ME.uid,
           userId:ME.uid, supplierId:sup.id, supplierName:sup.name,
           type:'payment', amount:amt, date, billRef:ref, note,
           createdAt:firebase.firestore.FieldValue.serverTimestamp()
@@ -1425,6 +1490,7 @@ async function addEntry(){
 
     // Audit
     await DB.collection('audit').add({
+      businessId: ME.businessId||ME.uid,
       userId:ME.uid, by:ME.name, action:'manual_add',
       desc:`${type} ₹${amt} — ${desc}`, at:firebase.firestore.FieldValue.serverTimestamp()
     });
@@ -1622,6 +1688,7 @@ async function addSupplier(){
   if(!name){ toast('Enter supplier name','warn'); return; }
   try{
     await DB.collection('suppliers').add({
+      businessId: ME.businessId||ME.uid,
       userId:ME.uid, name, shop, openingBalance:ob, phone:ph,
       createdAt:firebase.firestore.FieldValue.serverTimestamp()
     });
@@ -1645,6 +1712,7 @@ async function saveBill(){
   if(!amt||!date){ toast('Enter date and amount','warn'); return; }
   try{
     await DB.collection('sup_bills').add({
+      businessId: ME.businessId||ME.uid,
       userId:ME.uid, supplierId:supId, supplierName:supName,
       type, amount:amt, date, billRef:ref, note,
       createdAt:firebase.firestore.FieldValue.serverTimestamp()
@@ -1652,6 +1720,7 @@ async function saveBill(){
     if(type==='payment'){
       const sup=SUPS.find(s=>s.id===supId);
       await DB.collection('transactions').add({
+        businessId: ME.businessId||ME.uid,
         userId:ME.uid, date, shop:sup?.shop||'s1',
         type:'payment', amount:amt,
         desc:`Payment to ${supName}`, billRef:ref, note,
@@ -1751,6 +1820,48 @@ function today(){ return new Date().toISOString().split('T')[0]; }
 // DATE FILTER LOGIC
 // ═══════════════════════════════════════════
 let _dateMode = 'today';
+
+// Dashboard date filter
+let _dashDateMode = 'today';
+
+function setDashDate(mode, el){
+  _dashDateMode = mode;
+  document.querySelectorAll('#dash-date-tabs .dtab').forEach(b=>b.classList.remove('on'));
+  el.classList.add('on');
+  const cr = document.getElementById('dash-custom-row');
+  if(cr){
+    cr.style.display = mode==='custom' ? 'block' : 'none';
+    if(mode==='custom'){
+      const to = today();
+      const from = new Date(); from.setDate(from.getDate()-10);
+      const fromStr = from.toISOString().split('T')[0];
+      const df = document.getElementById('dash-from');
+      const dt = document.getElementById('dash-to');
+      if(df && !df.value) df.value = fromStr;
+      if(dt && !dt.value) dt.value = to;
+    }
+  }
+  renderDash();
+}
+
+function getDashTxs(allTxs){
+  const t = today();
+  const yesterday = new Date(); yesterday.setDate(yesterday.getDate()-1);
+  const yStr = yesterday.toISOString().split('T')[0];
+  const weekStart = new Date(); weekStart.setDate(weekStart.getDate()-6);
+  const wStr = weekStart.toISOString().split('T')[0];
+  const monthStart = t.substring(0,7)+'-01';
+  if(_dashDateMode==='today')     return allTxs.filter(x=>x.date===t);
+  if(_dashDateMode==='yesterday') return allTxs.filter(x=>x.date===yStr);
+  if(_dashDateMode==='week')      return allTxs.filter(x=>x.date>=wStr);
+  if(_dashDateMode==='month')     return allTxs.filter(x=>x.date>=monthStart);
+  if(_dashDateMode==='custom'){
+    const from = document.getElementById('dash-from')?.value||'';
+    const to   = document.getElementById('dash-to')?.value||t;
+    return allTxs.filter(x=>x.date && (!from||x.date>=from) && x.date<=to);
+  }
+  return allTxs.filter(x=>x.date===t); // default today
+}
 
 function setDate(mode, el){
   _dateMode = mode;
