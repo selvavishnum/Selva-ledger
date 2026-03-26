@@ -3,6 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<meta http-equiv="X-Content-Type-Options" content="nosniff">
+<meta name="referrer" content="no-referrer">
 <title>Selva Ledger Pro</title>
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&family=Noto+Sans+Tamil:wght@400;500;600;700&display=swap" rel="stylesheet">
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
@@ -278,6 +280,9 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--blue);ba
       <div class="lcard-logo">🌿</div>
       <div class="lcard-title">Selva Ledger Pro</div>
       <div class="lcard-sub">Digital Audit · Global Control</div>
+    <div style="background:var(--gl);border:1px solid #6ee7b7;border-radius:8px;padding:8px 12px;margin-top:10px;font-size:11px;color:var(--green);text-align:left">
+      🔒 <b>Secure Login</b> — Your business data is encrypted and protected. Only authorized users can access this system.
+    </div>
     </div>
     <div class="lerr" id="lerr"></div>
     <button class="g-btn" onclick="loginGoogle()">
@@ -552,7 +557,11 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--blue);ba
 
     <div class="sect-title">🔑 Claude API Key (for OCR Scan)</div>
     <div class="fgrp" style="margin-bottom:6px">
-      <input type="password" id="api-inp" placeholder="sk-ant-api03-..." style="font-family:var(--mono);font-size:12px">
+      <div style="position:relative">
+        <input type="password" id="api-inp" placeholder="sk-ant-api03-..." style="font-family:var(--mono);font-size:12px;padding-right:40px">
+        <button onclick="toggleApiView()" style="position:absolute;right:8px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;font-size:14px" id="api-eye">👁️</button>
+      </div>
+      <div style="font-size:10px;color:var(--red);margin-top:3px">🔒 Never share this key with anyone</div>
     </div>
     <div id="api-st" style="font-size:11px;color:var(--muted);margin-bottom:8px"></div>
     <button class="btn G" onclick="saveKey()" style="margin-top:0">✓ Save API Key</button>
@@ -716,10 +725,22 @@ const DEF_SHOPS = {
   s4:{name:'Tulsi Bridal',icon:'💍',color:'#7c3aed'}
 };
 const DEF_CATS = {
-  s1:{sales:['Cash Sale','Wholesale','B2B Credit','Gpay'],expense:['Maligai Bills','Crate Charges','Labour','Transport','Rent/EB','Phone Bill','Other']},
-  s2:{sales:['Cash Sale','Wholesale','B2B Credit','Gpay'],expense:['Maligai Bills','Crate Charges','Labour','Transport','Rent/EB','Other']},
-  s3:{sales:['Cash','Gpay','Kumaran Hotel','Ali Tea Stall','Platez','Other'],expense:['Tea Master Salary','Vada Master Salary','Cashier Salary','Milk Bill','Cigarette Stock','Gas Bill','Rent/EB','Other']},
-  s4:{sales:['Cash','Gpay','Card','Advance'],expense:['Staff Salary','Material','Rent/EB','Maintenance','Other']}
+  s1:{
+    sales:['Cash','GPay','Vishnu GPay','Card Sales','Ballari','Preyum Fruits','Ali Tea Stall','Platez','Kumaran Hotel','Heerai','Baby Corn','Coconut','Nanjil Milk','B2B Credit','Other'],
+    expense:['Load Man','Hut Sun Curd','Gokulam Finance','Crate Charges','Labour','Transport','Rent/EB','Maligai Bills','Phone Bill','Other']
+  },
+  s2:{
+    sales:['Cash','GPay','Card Sales','Wholesale','B2B Credit','Ballari','Other'],
+    expense:['Load Man','Crate Charges','Labour','Transport','Rent/EB','Maligai Bills','Other']
+  },
+  s3:{
+    sales:['Cash','Gpay','Kumaran Hotel','Ali Tea Stall','Platez','Card','Other'],
+    expense:['Tea Master Salary','Vada Master Salary','Cashier Salary','Milk Bill','Cigarette Stock','Gas Bill','Rent/EB','Other']
+  },
+  s4:{
+    sales:['Cash','Gpay','Card','Advance','Order'],
+    expense:['Staff Salary','Material','Rent/EB','Maintenance','Other']
+  }
 };
 const ROLES = {owner:'👑 Owner',manager:'👔 Manager',cashier:'💵 Cashier'};
 
@@ -754,11 +775,26 @@ async function loginGoogle(){
   }catch(e){ showErr(e.message); }
 }
 
+// Login attempt rate limiting
+let _loginAttempts = 0, _loginLocked = false, _loginLockTimer = null;
+
 async function loginEmail(){
+  if(_loginLocked){ showErr('Too many attempts. Please wait 30 seconds.'); return; }
   const em=v('li-email'), pw=v('li-pass');
   if(!em||!pw){ showErr('Enter email and password'); return; }
-  try{ await AUTH.signInWithEmailAndPassword(em,pw); }
-  catch(e){ showErr(e.message); }
+  try{
+    await AUTH.signInWithEmailAndPassword(em,pw);
+    _loginAttempts = 0;
+  } catch(e){
+    _loginAttempts++;
+    if(_loginAttempts >= 5){
+      _loginLocked = true;
+      showErr('Too many failed attempts. Locked for 30 seconds.');
+      _loginLockTimer = setTimeout(()=>{ _loginLocked=false; _loginAttempts=0; }, 30000);
+    } else {
+      showErr(e.message + ' (Attempt '+_loginAttempts+'/5)');
+    }
+  }
 }
 
 async function registerEmail(){
@@ -1022,6 +1058,13 @@ async function saveCats(){
   }catch(e){ toast('Error: '+e.message,'bad'); }
 }
 
+function toggleApiView(){
+  const inp = document.getElementById('api-inp');
+  const eye = document.getElementById('api-eye');
+  if(inp){ inp.type = inp.type==='password'?'text':'password'; }
+  if(eye){ eye.textContent = inp?.type==='password'?'👁️':'🙈'; }
+}
+
 function saveKey(){
   const k=document.getElementById('api-inp').value.trim();
   if(!k.startsWith('sk-ant-')){ toast('Invalid key format','bad'); return; }
@@ -1180,28 +1223,40 @@ async function startScan(){
   const sups=SUPS.map(s=>s.name).join(', ')||'Mr Vilas,Lemon,Mr Carrot,Inji,PMN,Siva Annan';
   const allCats=[...(CATS[shop]?.sales||[]),...(CATS[shop]?.expense||[])].join(', ');
 
-  const sys=`You are an expert bilingual OCR agent for a Tamil Nadu shop ledger. The ledger may contain Tamil text, English text, or both mixed together.
+  const sys=`You are an expert bilingual OCR agent for Selva Vishnu's vegetable and retail shops in Thuckalay, Tamil Nadu.
 
-Shop: ${sName}. Known suppliers: ${sups}. Categories: ${allCats}.
+Shop being scanned: ${sName}
+Known suppliers: ${sups}
+Known categories: ${allCats}
 
-LANGUAGE RULES:
-- If an entry description is written in Tamil script, keep it in Tamil (e.g., "காய்கறி விற்பனை", "சம்பளம்", "பால் பில்")
-- If written in English/numbers, keep in English
-- Mixed entries: keep as written
-- Tamil numbers (௧,௨,௩...) convert to Arabic (1,2,3...)
+=== THUCKALAY SHOP LEDGER KNOWLEDGE ===
+SALES entries (type="sales") — income received from:
+GPay, Card Sales, Cash, Vishnu GPay, Ballari, Preyum Fruits, Ali Tea Stall, Platez,
+Kumaran Hotel, Heerai, Baby Corn, Coconut, Nanjil Milk, Tea, B2B Credit,
+Tamil names like: விண்டி வான்கடை, ஜரதனை Lemon, லெமன் ஓல்பவை, புதிய கோபுலேன்
 
-CRITICAL RULES:
-1. Extract EVERY single entry — do not skip any line
-2. Keep descriptions SHORT (max 25 characters)
-3. Return COMPACT JSON — minimize whitespace
-4. amount must be a NUMBER. null only if completely illegible
-5. doubt=true only for genuinely unclear amount or type
-6. For Tamil text doubts, write doubtQ in both Tamil and English
+EXPENSE entries (type="expense") — costs/salaries/bills:
+Load Man, Hut Sun Curd, OGuy, OP (Opening Balance carry), Gokulam Finance,
+Tamil names like: சென்னிமுன், லாங்கலுன், கிஸ்மி தமிழ்நாடு
 
-Return ONLY this JSON (no markdown):
-{"note_date":"YYYY-MM-DD or null","entries":[{"id":1,"type":"sales","desc":"desc or தமிழ்","amount":1234,"category":null,"ref":null,"supplier":null,"doubt":false,"doubtQ":null}],"summary":"X entries"}
+PAYMENT entries (type="payment") — paid to suppliers:
+Any entry paid to Mr Vilas, Lemon, Mr Carrot, Inji, PMN, Siva Annan
 
-Types: sales=விற்பனை/income, expense=செலவு/cost, payment=சப்ளையர் பேமெண்ட், unknown`;
+SUMMARY entries (skip these — do not extract as individual entries):
+Lines like "Total Sales", "Opening Balance", "Total" with big summary numbers at top
+
+=== OCR RULES ===
+1. Extract EVERY detail entry — skip only summary/total lines at top
+2. Tamil script descriptions: keep exactly as written
+3. Mixed Tamil+English: keep as written
+4. Tamil numbers ௧௨௩ → convert to 1,2,3
+5. Keep descriptions SHORT (max 30 chars)
+6. Return COMPACT JSON only — no markdown
+7. amount = NUMBER only. null if illegible
+8. doubt=true only for genuinely unclear entries
+
+Return ONLY JSON:
+{"note_date":"DD/MM/YY or YYYY-MM-DD","entries":[{"id":1,"type":"sales","desc":"GPay","amount":17736,"category":"Gpay","ref":null,"supplier":null,"doubt":false,"doubtQ":null}],"summary":"X entries found"}`;
 
   try{
     const res=await fetch('https://api.anthropic.com/v1/messages',{
@@ -1250,7 +1305,17 @@ Types: sales=விற்பனை/income, expense=செலவு/cost, payment
       throw new Error('No entries found in image. Make sure the photo is clear and well-lit.');
     }
 
-    _scanEntries=parsed.entries.map(e=>({...e,date:parsed.note_date||today(),shop,resolved:false}));
+    // Parse date - handle DD/MM/YY or DD/MM/YYYY format
+    let noteDate = parsed.note_date || today();
+    if(noteDate && noteDate.includes('/')){
+      const parts = noteDate.split('/');
+      if(parts.length === 3){
+        let [d,m,y] = parts;
+        if(y.length===2) y='20'+y;
+        noteDate = `${y}-${m.padStart(2,'0')}-${d.padStart(2,'0')}`;
+      }
+    }
+    _scanEntries=parsed.entries.map(e=>({...e,date:noteDate,shop,resolved:false}));
     showPhase('review'); setStep(3); renderEntries(parsed.summary||`${_scanEntries.length} entries extracted`);
   }catch(err){
     showPhase('upload'); setStep(1);
@@ -1462,17 +1527,27 @@ async function addEntry(){
   if(!amt||amt<=0){ toast('Enter a valid amount','warn'); return; }
   if(!desc){ toast('Enter a description','warn'); return; }
 
-  const btn=document.getElementById('entry-btn');
-  btn.disabled=true; btn.textContent='⏳ Saving...';
+  // Fix: use correct button ID
+  const btn = document.getElementById('btn-add-entry') || document.getElementById('entry-btn');
+  if(btn){ btn.disabled=true; btn.textContent='⏳ Saving...'; }
 
   try{
+    const BID = ME.businessId||ME.uid;
+    if(!BID){ toast('Not logged in properly. Please logout and login again.','bad'); return; }
+
     await DB.collection('transactions').add({
-      businessId: ME.businessId||ME.uid,
-      userId:ME.uid, date, shop, type, amount:amt, desc,
-      billRef:ref, note, supplier,
-      source:'manual', by:ME.name,
-      createdMs:Date.now(),
-      createdAt:firebase.firestore.FieldValue.serverTimestamp()
+      businessId: BID,
+      userId: ME.uid,
+      date, shop, type,
+      amount: amt,
+      desc,
+      billRef: ref||'',
+      note: note||'',
+      supplier: supplier||null,
+      source: 'manual',
+      by: ME.name||ME.email||'user',
+      createdMs: Date.now(),
+      createdAt: firebase.firestore.FieldValue.serverTimestamp()
     });
 
     // Supplier bill if payment
@@ -1499,10 +1574,11 @@ async function addEntry(){
     document.querySelectorAll('.qb').forEach(b=>b.classList.remove('sel'));
     toast('✅ Entry saved!');
   }catch(err){
-    console.error('Entry error:',err);
-    toast('Failed: '+err.message,'bad');
+    console.error('Entry error:',err.code, err.message);
+    toast('Save failed: '+err.message,'bad');
+    alert('Entry save failed:\n'+err.message+'\n\nPlease check your internet connection.');
   }finally{
-    btn.disabled=false; btn.textContent='+ Add Entry';
+    if(btn){ btn.disabled=false; btn.textContent='+ Add Entry'; }
   }
 }
 
