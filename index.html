@@ -368,8 +368,15 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--blue);ba
     <div id="ph-upload">
       <div class="card">
         <div class="chd" id="chd-upload">📷 Upload Handwritten Note</div>
-        <div class="frow full" style="margin-bottom:12px">
+        <div class="frow">
           <div class="fgrp"><label>Select Shop</label><select id="sc-shop"></select></div>
+          <div class="fgrp">
+            <label>Ledger Date</label>
+            <input type="date" id="sc-date" style="font-size:14px">
+          </div>
+        </div>
+        <div style="background:var(--bl);border:1px solid #93c5fd;border-radius:8px;padding:8px 12px;margin-bottom:10px;font-size:11px;color:var(--blue)">
+          📅 Select the date written on your ledger before scanning
         </div>
         <div class="uzone" id="dropzone">
           <input type="file" accept="image/*" id="fileInp" onchange="onFile(this)">
@@ -396,6 +403,7 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--blue);ba
     <div id="ph-review" style="display:none">
       <div class="card">
         <div class="chd" id="chd-review">✏️ Review & Edit Entries</div>
+        <div id="scan-date-display" style="background:var(--bl);border:1px solid #93c5fd;border-radius:8px;padding:8px 12px;margin-bottom:10px;font-size:12px;font-weight:600;color:var(--blue)">📅 Entries will be saved for: today</div>
         <div id="scan-alert" class="alert ok" style="display:none"></div>
         <div id="entries-list"></div>
         <button class="btn G" id="confirm-btn">✓ Confirm & Save All</button>
@@ -592,18 +600,48 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--blue);ba
 <!-- ══ ADD STAFF ══ -->
 <div class="mover" id="add-staff-modal">
   <div class="modal">
-    <div class="mhd">Add Staff <button class="mclose" onclick="closeM('add-staff-modal')">✕</button></div>
-    <div class="frow full"><div class="fgrp"><label>Full Name</label><input type="text" id="st-name" placeholder="Staff name"></div></div>
-    <div class="frow full"><div class="fgrp"><label>Email</label><input type="email" id="st-email" placeholder="staff@email.com"></div></div>
-    <div class="frow full"><div class="fgrp"><label>Role</label>
-      <select id="st-role">
-        <option value="manager">👔 Manager — Entry + Scan + Edit</option>
-        <option value="cashier">💵 Cashier — Manual Entry Only</option>
+    <div class="mhd">Add Staff Member <button class="mclose" onclick="closeM('add-staff-modal')">✕</button></div>
+
+    <div class="frow full"><div class="fgrp"><label>Full Name</label><input type="text" id="st-name" placeholder="e.g. Perinbham, Sherina"></div></div>
+    <div class="frow full"><div class="fgrp"><label>Email (for Google login)</label><input type="email" id="st-email" placeholder="staff@gmail.com"></div></div>
+
+    <div class="frow full"><div class="fgrp"><label>Role & Permissions</label>
+      <select id="st-role" onchange="updateStaffRoleInfo()">
+        <option value="manager">👔 Manager — Scan + Entry + Edit ledger</option>
+        <option value="cashier">💵 Cashier — Manual Entry Only (no scan)</option>
       </select>
     </div></div>
-    <div class="frow full"><div class="fgrp"><label>Assigned Shop</label><select id="st-shop"></select></div></div>
-    <div class="alert info">Staff will receive an invite email to set their password</div>
-    <button class="btn G" onclick="addStaff()">+ Add Staff Member</button>
+    <div id="st-role-info" style="background:var(--bl);border-radius:8px;padding:8px 12px;font-size:11px;color:var(--blue);margin-bottom:10px">
+      👔 Manager can: Scan photos, add entries, edit entries. Cannot delete or change settings.
+    </div>
+
+    <div class="frow full"><div class="fgrp">
+      <label>Shop Access</label>
+      <select id="st-shop-access">
+        <option value="all">🏠 All Shops (can see and enter for all)</option>
+        <option value="s1">🥬 Veg Shop 1 Only</option>
+        <option value="s2">🥦 Veg Shop 2 Only</option>
+        <option value="s3">☕ Tea Shop Only</option>
+        <option value="s4">💍 Tulsi Bridal Only</option>
+      </select>
+    </div></div>
+    <div style="background:var(--yl);border:1px solid #fcd34d;border-radius:8px;padding:10px;margin-bottom:12px;font-size:11px;color:var(--yellow)">
+      ⚠️ Staff can ONLY see and enter data for their assigned shop.<br>
+      Owner always sees all shops.
+    </div>
+
+    <div style="background:var(--gl);border:1px solid #6ee7b7;border-radius:10px;padding:12px;margin-bottom:12px">
+      <div style="font-weight:700;font-size:12px;color:var(--green);margin-bottom:6px">📲 How Staff Joins:</div>
+      <div style="font-size:11px;color:var(--greend);line-height:1.7">
+        1. Share your <b>Business Code</b> with staff (shown in Settings)<br>
+        2. Staff opens: <b id="app-link-display">your app link</b><br>
+        3. Staff clicks "Create Account"<br>
+        4. Staff enters their email, password & your Business Code<br>
+        5. They're connected to your business automatically!
+      </div>
+    </div>
+
+    <button class="btn G" onclick="addStaff()">+ Add Staff Record</button>
   </div>
 </div>
 
@@ -944,6 +982,9 @@ async function startApp(user){
     const bid = ME.businessId||ME.uid;
     if(bid) toast('✅ Connected — Business: '+bid.slice(0,6).toUpperCase(),'ok');
     else toast('⚠️ Session issue — please logout and login again','bad');
+    // Set app link in staff modal
+    const appLink = document.getElementById('app-link-display');
+    if(appLink) appLink.textContent = window.location.hostname + window.location.pathname;
   }, 1500);
 }
 
@@ -1115,27 +1156,57 @@ async function loadStaffList(){
           <div style="font-weight:600;font-size:13px">${s.name}</div>
           <div style="font-size:11px;color:var(--muted)">${s.email} · ${ROLES[s.role]||s.role}</div>
         </div>
-        <span style="font-size:10px;padding:2px 7px;border-radius:20px;background:var(--bl);color:var(--blue);flex-shrink:0">${SHOPS[s.shop]?.name||'All'}</span>
+        <div style="text-align:right;flex-shrink:0">
+        <span style="font-size:10px;padding:2px 7px;border-radius:20px;background:var(--bl);color:var(--blue);display:block;margin-bottom:3px">${s.shop==='all'?'All Shops':(SHOPS[s.shop]?.name||s.shop)}</span>
+        <span style="font-size:9px;padding:2px 7px;border-radius:20px;background:var(--yl);color:var(--yellow)">${(s.role||'staff').toUpperCase()}</span>
+      </div>
       </div>`).join('') || '<div class="empty">No staff added yet</div>';
   }catch(e){ el.innerHTML='<div class="empty">Unable to load staff</div>'; }
 }
 
+function updateStaffRoleInfo(){
+  const role = v('st-role');
+  const info = document.getElementById('st-role-info');
+  if(!info) return;
+  if(role==='manager'){
+    info.textContent='👔 Manager can: Scan photos, add entries, edit entries. Cannot delete or change settings.';
+    info.style.color='var(--blue)';
+  } else {
+    info.textContent='💵 Cashier can: Manual entry only. Cannot scan, edit or delete entries.';
+    info.style.color='var(--green)';
+  }
+}
+
 async function addStaff(){
-  const name=v('st-name'), email=v('st-email'), role=v('st-role'), shop=v('st-shop');
+  const name=v('st-name'), email=v('st-email'), role=v('st-role');
+  const shopAccess = v('st-shop-access') || 'all';
   if(!name||!email){ toast('Fill name and email','warn'); return; }
   try{
-    // Create Firebase Auth user via email link (passwordless invite)
-    // For now save staff record - they can login via Google
     const tempId='staff_'+Date.now();
     await DB.collection('staff').doc(tempId).set({
-      uid:tempId, name, email, role, shop,
-      businessId: ME.businessId||ME.uid,  // KEY: links staff to owner's data
-      invitedBy:ME.uid, createdAt:firebase.firestore.FieldValue.serverTimestamp()
+      uid:tempId, name, email, role,
+      shop: shopAccess,          // which shop they can access
+      businessId: ME.businessId||ME.uid,
+      invitedBy:ME.uid,
+      invitedByName:ME.name,
+      createdAt:firebase.firestore.FieldValue.serverTimestamp()
     });
     ['st-name','st-email'].forEach(id=>{ const el=document.getElementById(id); if(el) el.value=''; });
     closeM('add-staff-modal');
     loadStaffList();
-    toast('✅ Staff added! They can login with Google using: '+email);
+
+    // Show business code to share
+    const bizCode = (ME.businessId||ME.uid).slice(0,8).toUpperCase();
+    toast('✅ Staff record created!');
+    setTimeout(()=>{
+      alert(`✅ Staff "${name}" added!
+
+📲 Next Steps:
+1. Share your Business Code: ${bizCode}
+2. Share app link: ${window.location.href}
+3. Staff creates account with that code
+4. They'll automatically join your business!`);
+    }, 500);
   }catch(e){ toast('Error: '+e.message,'bad'); }
 }
 
@@ -1185,19 +1256,27 @@ function renderDash(){
   else if(net>=0){pill.className='pill ok';msg.textContent=`✓ Net +₹${fmt(net)} — Balanced`;}
   else{pill.className='pill bad';msg.textContent=`✗ Overdraft ₹${fmt(Math.abs(net))} — Check expenses!`;}
 
-  // Shop cards
+  // Shop cards — use getDashTxs so date filter applies
   const sc=document.getElementById('shop-cards');
   const show=_shop==='all'?Object.keys(SHOPS):[_shop];
+  const filteredForCards = getDashTxs(TXS); // respects selected date period
   sc.innerHTML=show.map(k=>{
-    const stxs=TXS.filter(x=>x.date===t&&x.shop===k);
+    const stxs=filteredForCards.filter(x=>x.shop===k);
     const ss=sum(stxs,'sales'), se=sum(stxs,'expense')+sum(stxs,'payment'), sn=ss-se;
-    return `<div class="sc ${k}">
-      <div class="sc-top"><div class="sc-name">${SHOPS[k]?.icon||'🏪'} ${SHOPS[k]?.name||k}</div><div class="sc-cnt">${stxs.length} entries</div></div>
+    return `<div class="sc ${k}" onclick="openShopDetail('${k}')" style="cursor:pointer">
+      <div class="sc-top">
+        <div class="sc-name">${SHOPS[k]?.icon||'🏪'} ${SHOPS[k]?.name||k}</div>
+        <div style="display:flex;align-items:center;gap:6px">
+          <div class="sc-cnt">${stxs.length} entries</div>
+          <span style="font-size:10px;color:var(--muted)">→</span>
+        </div>
+      </div>
       <div class="sc-nums">
         <span class="sc-num">Sales: <b>₹${fmt(ss)}</b></span>
         <span class="sc-num">Exp: <b>₹${fmt(se)}</b></span>
         <span class="sc-num" style="color:${sn>=0?'var(--green)':'var(--red)'}">Net: <b>${sn>=0?'+':''}₹${fmt(sn)}</b></span>
       </div>
+      <div style="font-size:10px;color:var(--muted);margin-top:4px;text-align:right">Tap → 360° report</div>
     </div>`;
   }).join('');
 
@@ -1246,6 +1325,7 @@ async function startScan(){
   showPhase('scan'); setStep(2); animScan();
 
   const shop=v('sc-shop'), sName=SHOPS[shop]?.name||shop;
+  const scanDate = v('sc-date') || today(); // Use selected date or today
   const sups=SUPS.map(s=>s.name).join(', ')||'Mr Vilas,Lemon,Mr Carrot,Inji,PMN,Siva Annan';
   const allCats=[...(CATS[shop]?.sales||[]),...(CATS[shop]?.expense||[])].join(', ');
 
@@ -1255,21 +1335,50 @@ Shop being scanned: ${sName}
 Known suppliers: ${sups}
 Known categories: ${allCats}
 
-=== THUCKALAY SHOP LEDGER KNOWLEDGE ===
-SALES entries (type="sales") — income received from:
-GPay, Card Sales, Cash, Vishnu GPay, Ballari, Preyum Fruits, Ali Tea Stall, Platez,
-Kumaran Hotel, Heerai, Baby Corn, Coconut, Nanjil Milk, Tea, B2B Credit,
-Tamil names like: விண்டி வான்கடை, ஜரதனை Lemon, லெமன் ஓல்பவை, புதிய கோபுலேன்
+=== THUCKALAY VEGETABLE SHOP LEDGER — HANDWRITING PATTERN ===
 
-EXPENSE entries (type="expense") — costs/salaries/bills:
-Load Man, Hut Sun Curd, OGuy, OP (Opening Balance carry), Gokulam Finance,
-Tamil names like: சென்னிமுன், லாங்கலுன், கிஸ்மி தமிழ்நாடு
+GREEN CIRCLE entries (type="sales") — Income/Collections:
+- Total Sales (மொத்த விற்பனை) — summary, SKIP
+- Opening Balance (ஆரம்ப இருப்பு) — summary, SKIP  
+- மாண்டை கரவு / Market Return — sales
+- B2B Credit, Staff Credit — sales
+- G-Pay (GPay) — sales income received via GPay
+- Cards / Card Sales — sales via card
+- Vishnu GPay, Kumaran Hotel, Ali Tea Stall, Platez — sales
+- Heerai, Baby Corn, Coconut, Ballari, Preyum Fruits — sales
+- வண்டி வடக்கை / Vandi Vadakai — sales
+- Nanjil Milk, Tea — sales
 
-PAYMENT entries (type="payment") — paid to suppliers:
-Any entry paid to Mr Vilas, Lemon, Mr Carrot, Inji, PMN, Siva Annan
+RED CIRCLE entries (type="expense") — All Expenses:
+- Load Man (₹1,000-1,500 range) — labour expense
+- Driver (₹500-800) — transport expense
+- Token — daily token expense
+- வடி வண்டை வலைஞர் / Veg Vandi (₹800+) — vegetable van expense
+- பன்னீர் / Paneer — purchase expense
+- கொய்யா / Koyya (Guava) — purchase expense
+- பால் / Milk — daily milk expense
+- ஹட்சன் தயிர் / Hatsun Curd — curd purchase
+- சப்பாத்தி / Chappathi — food expense
+- மாவு / Mavu — flour expense
+- முட்டை / Egg — egg purchase
+- சமையல் / Samayal — cooking expense
+- சமையல் staff (advance) — staff advance
+- Hema / ஹேமா — person payment
+- Water Can — expense
+- சிறுமி கலவை / Sirpi Kalan — expense
+- Tea Bill — tea shop bill
+- உண்டியல் / Undiyal — vegetable market payment
+- நீம் மார்கெட் / Neem Market — market payment
+- Closing Balance — SKIP (summary)
+- OGuy, OP — expense
+- Gokulam Finance — loan payment (expense)
 
-SUMMARY entries (skip these — do not extract as individual entries):
-Lines like "Total Sales", "Opening Balance", "Total" with big summary numbers at top
+PAYMENT entries (type="payment") — Supplier payments:
+Mr Vilas, Lemon, Mr Carrot, Inji, PMN, Siva Annan
+
+SKIP these summary lines (don't extract):
+"Total Sales", "Opening Balance", "மொத்த விற்பனை", "Closing Balance", "Total"
+Any line that is just a running total number
 
 === OCR RULES ===
 1. Extract EVERY detail entry — skip only summary/total lines at top
@@ -1341,7 +1450,12 @@ Return ONLY JSON:
         noteDate = `${y}-${m.padStart(2,'0')}-${d.padStart(2,'0')}`;
       }
     }
-    _scanEntries=parsed.entries.map(e=>({...e,date:noteDate,shop,resolved:false}));
+    // Use manually selected date if provided, else use OCR detected date
+    const finalDate = scanDate !== today() ? scanDate : (noteDate || today());
+    _scanEntries=parsed.entries.map(e=>({...e, date:finalDate, shop, resolved:false}));
+    // Show selected date prominently
+    document.getElementById('scan-date-display').textContent = 
+      'Entries will be saved for: '+finalDate;
     showPhase('review'); setStep(3); renderEntries(parsed.summary||`${_scanEntries.length} entries extracted`);
   }catch(err){
     showPhase('upload'); setStep(1);
@@ -1918,6 +2032,10 @@ function goPane(name,btn){
   if(name==='sup'){ renderSups(); buildSupSelects(); }
   if(name==='entry') loadQB();
   if(name==='ledger') renderLedger();
+  if(name==='scan'){
+    const sd = document.getElementById('sc-date');
+    if(sd && !sd.value) sd.value = today();
+  }
 }
 
 // ═══════════════════════════════════════════
@@ -2419,6 +2537,10 @@ function applyLang(){
 
 // ═══════════════════════════════════════════
 window.onload = () => {
+  // Set today's date as default for scan
+  const sd = document.getElementById('sc-date');
+  if(sd) sd.value = new Date().toISOString().split('T')[0];
+
   // Login screen is visible by default (display:flex in CSS)
   AUTH.onAuthStateChanged(user => {
     if(user){
