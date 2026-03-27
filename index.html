@@ -854,27 +854,47 @@ function showErr(msg){
 // APP INIT
 // ═══════════════════════════════════════════
 async function startApp(user){
-  ME = {uid:user.uid, name:user.displayName||user.email, email:user.email, role:'owner', shop:'all'};
+  // ALWAYS set businessId = user.uid as safe default FIRST
+  ME = {
+    uid: user.uid,
+    name: user.displayName || user.email || 'User',
+    email: user.email || '',
+    role: 'owner',
+    shop: 'all',
+    businessId: user.uid  // CRITICAL: always set this first!
+  };
 
-  // Load staff record & determine businessId
+  // Then try to load staff record (may override businessId for staff)
   try{
     const sd = await DB.collection('staff').doc(user.uid).get();
     if(sd.exists){
-      const d=sd.data();
-      ME.role=d.role||'owner';
-      ME.shop=d.shop||'all';
-      // businessId = owner's UID (all staff share owner's data space)
-      ME.businessId = d.businessId || user.uid;
+      const d = sd.data();
+      ME.role = d.role || 'owner';
+      ME.shop = d.shop || 'all';
+      // Only override businessId if it's explicitly set in staff record
+      if(d.businessId) ME.businessId = d.businessId;
+      // else keep user.uid as businessId (they're the owner)
     } else {
-      // First time login = Owner
-      ME.role='owner'; ME.shop='all'; ME.businessId=user.uid;
-      await DB.collection('staff').doc(user.uid).set({
-        uid:user.uid, name:ME.name, email:ME.email,
-        role:'owner', shop:'all', businessId:user.uid,
-        createdAt:firebase.firestore.FieldValue.serverTimestamp()
-      });
+      // First time login — create owner record
+      ME.role = 'owner'; ME.shop = 'all'; ME.businessId = user.uid;
+      try{
+        await DB.collection('staff').doc(user.uid).set({
+          uid: user.uid,
+          name: ME.name,
+          email: ME.email,
+          role: 'owner',
+          shop: 'all',
+          businessId: user.uid,
+          createdAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+      } catch(writeErr){ console.log('Staff create err:', writeErr); }
     }
-  }catch(e){ console.log('Staff load:',e); ME.businessId=user.uid; }
+  } catch(e){
+    console.log('Staff load err:', e);
+    // Keep ME.businessId = user.uid (already set above)
+  }
+
+  console.log('ME ready:', ME.role, 'businessId:', ME.businessId);
 
   // Load config
   try{
@@ -919,6 +939,12 @@ async function startApp(user){
   buildUI();
   applyLang();
   subscribeData();
+  // Show confirmation that data connection is ready
+  setTimeout(()=>{
+    const bid = ME.businessId||ME.uid;
+    if(bid) toast('✅ Connected — Business: '+bid.slice(0,6).toUpperCase(),'ok');
+    else toast('⚠️ Session issue — please logout and login again','bad');
+  }, 1500);
 }
 
 // ═══════════════════════════════════════════
@@ -1442,15 +1468,28 @@ function updateCBtn(){
 // ═══════════════════════════════════════════
 async function confirmScan(){
   if(_scanEntries.some(e=>e.doubt)) return;
-  const btn=document.getElementById('confirm-btn');
-  btn.disabled=true; btn.textContent='⏳ Saving to cloud...';
+
+  // Guard: ensure ME is ready
+  if(!ME || !ME.uid){
+    toast('Not logged in. Please refresh and login again.','bad');
+    return;
+  }
+
+  const BID = ME.businessId || ME.uid;
+  if(!BID){
+    toast('Session error. Please logout and login again.','bad');
+    return;
+  }
+
+  const btn = document.getElementById('confirm-btn');
+  if(btn){ btn.disabled=true; btn.textContent='⏳ Saving to cloud...'; }
   let s=0,e=0,p=0, saved=0;
 
   try{
     for(const entry of _scanEntries){
       const txData={
-        businessId: ME.businessId||ME.uid,
-        userId:ME.uid,
+        businessId: BID,
+        userId: ME.uid,
         date:entry.date||today(),
         shop:entry.shop||'s1',
         type:entry.type||'expense',
@@ -1505,10 +1544,12 @@ async function confirmScan(){
     toast('✅ All entries saved!');
   }catch(err){
     console.error('Save error:',err);
-    btn.disabled=false;
-    btn.textContent=`✓ Retry Save (${_scanEntries.length - saved} remaining)`;
-    toast('Save failed: '+err.message,'bad');
-    alert('Save failed:\n'+err.message+'\n\nCheck your internet and try again.\n('+saved+' of '+_scanEntries.length+' saved)');
+    if(btn){ btn.disabled=false; btn.textContent=`✓ Retry (${_scanEntries.length - saved} left)`; }
+    const errMsg = err.code==='permission-denied'
+      ? 'PERMISSION DENIED\n\nFix: Go to Firebase Console → Firestore → Rules\nPaste: allow read, write: if request.auth != null;\nClick Publish'
+      : err.message;
+    toast('Save failed: '+err.code,'bad');
+    alert('Save failed: '+errMsg+'\n\n('+saved+' of '+_scanEntries.length+' saved so far)');
   }
 }
 
