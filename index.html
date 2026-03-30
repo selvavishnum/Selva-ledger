@@ -406,7 +406,7 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--blue);ba
         <div id="scan-date-display" style="background:var(--bl);border:1px solid #93c5fd;border-radius:8px;padding:8px 12px;margin-bottom:10px;font-size:12px;font-weight:600;color:var(--blue)">📅 Entries will be saved for: today</div>
         <div id="scan-alert" class="alert ok" style="display:none"></div>
         <div id="entries-list"></div>
-        <button class="btn G" id="confirm-btn">✓ Confirm & Save All</button>
+        <button class="btn G" id="confirm-btn" onclick="handleConfirmBtn()">✓ Confirm & Save All</button>
         <button class="btn S" onclick="resetScan()" id="btn-scan-again">↩ Scan Again</button>
       </div>
     </div>
@@ -561,6 +561,22 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--blue);ba
       <div style="font-weight:700;font-size:15px" id="mu-name">-</div>
       <div style="font-size:12px;color:var(--muted)" id="mu-email">-</div>
       <div style="font-size:11px;margin-top:4px" id="mu-role">-</div>
+    </div>
+
+    <!-- AI Learning Stats -->
+    <div style="background:#faf5ff;border:1px solid #c4b5fd;border-radius:10px;padding:12px;margin-bottom:12px;display:flex;align-items:center;gap:10px">
+      <span style="font-size:24px">🧠</span>
+      <div style="flex:1">
+        <div style="font-weight:700;font-size:13px;color:#4c1d95">AI Learning System</div>
+        <div style="font-size:11px;color:#6d28d9" id="ai-learn-count">0 corrections learned</div>
+      </div>
+      <button onclick="clearAILearning()" style="background:none;border:1px solid #c4b5fd;border-radius:8px;padding:5px 10px;font-size:11px;cursor:pointer;color:#7c3aed">Reset</button>
+    </div>
+
+    <!-- Pending sync indicator -->
+    <div id="pending-sync-info" style="display:none;background:var(--yl);border:1px solid #fcd34d;border-radius:10px;padding:10px;margin-bottom:12px;font-size:11px;color:var(--yellow)">
+      ⏳ <span id="pending-count">0</span> entries pending cloud sync
+      <button onclick="syncPendingToCloud()" style="float:right;background:var(--yellow);color:#fff;border:none;border-radius:6px;padding:3px 8px;font-size:11px;cursor:pointer">Sync Now</button>
     </div>
 
     <div class="sect-title">🔑 Claude API Key (for OCR Scan)</div>
@@ -960,6 +976,8 @@ async function startApp(user){
   // Show business code for owner
   const bizCode = document.getElementById('biz-code-display');
   if(bizCode) bizCode.textContent = (ME.businessId||ME.uid).slice(0,8).toUpperCase();
+  // Update AI learning and sync stats
+  updateMenuStats();
 
   // API key status
   const k = localStorage.getItem('slv_key')||'';
@@ -977,6 +995,7 @@ async function startApp(user){
   buildUI();
   applyLang();
   subscribeData();
+  syncOnStart();
   // Show confirmation that data connection is ready
   setTimeout(()=>{
     const bid = ME.businessId||ME.uid;
@@ -1130,6 +1149,29 @@ function toggleApiView(){
   const eye = document.getElementById('api-eye');
   if(inp){ inp.type = inp.type==='password'?'text':'password'; }
   if(eye){ eye.textContent = inp?.type==='password'?'👁️':'🙈'; }
+}
+
+function clearAILearning(){
+  if(!confirm('Clear all AI learned corrections? This cannot be undone.')) return;
+  localStorage.removeItem('slv_ai_corrections');
+  updateMenuStats();
+  toast('🧠 AI learning cleared','ok');
+}
+
+function updateMenuStats(){
+  // AI learning count
+  const corrections = JSON.parse(localStorage.getItem('slv_ai_corrections')||'[]');
+  const aiEl = document.getElementById('ai-learn-count');
+  if(aiEl){
+    if(corrections.length===0) aiEl.textContent='No corrections learned yet — fix entries to teach AI';
+    else aiEl.textContent=`${corrections.length} correction${corrections.length>1?'s':''} learned — AI will auto-fix similar entries`;
+  }
+  // Pending sync count
+  const pending = getPendingQueue();
+  const pendEl = document.getElementById('pending-sync-info');
+  const pendCount = document.getElementById('pending-count');
+  if(pendEl){ pendEl.style.display = pending.length>0 ? 'block' : 'none'; }
+  if(pendCount) pendCount.textContent = pending.length;
 }
 
 function saveKey(){
@@ -1391,7 +1433,8 @@ Any line that is just a running total number
 8. doubt=true only for genuinely unclear entries
 
 Return ONLY JSON:
-{"note_date":"DD/MM/YY or YYYY-MM-DD","entries":[{"id":1,"type":"sales","desc":"GPay","amount":17736,"category":"Gpay","ref":null,"supplier":null,"doubt":false,"doubtQ":null}],"summary":"X entries found"}`;
+{"note_date":"DD/MM/YY or YYYY-MM-DD","entries":[{"id":1,"type":"sales","desc":"GPay","amount":17736,"category":"Gpay","ref":null,"supplier":null,"doubt":false,"doubtQ":null}],"summary":"X entries found"}
+${getAICorrectionsPrompt()}`;
 
   try{
     const res=await fetch('https://api.anthropic.com/v1/messages',{
@@ -1452,7 +1495,11 @@ Return ONLY JSON:
     }
     // Use manually selected date if provided, else use OCR detected date
     const finalDate = scanDate !== today() ? scanDate : (noteDate || today());
-    _scanEntries=parsed.entries.map(e=>({...e, date:finalDate, shop, resolved:false}));
+    // Apply AI learning corrections automatically
+    const rawEntries = parsed.entries.map(e=>({...e, date:finalDate, shop, resolved:false}));
+    _scanEntries = applyAILearning(rawEntries);
+    const aiFixed = _scanEntries.filter(e=>e._aiCorrected).length;
+    if(aiFixed>0) toast(`🧠 AI auto-corrected ${aiFixed} entr${aiFixed>1?'ies':'y'} based on your history`,'info');
     // Show selected date prominently
     document.getElementById('scan-date-display').textContent = 
       'Entries will be saved for: '+finalDate;
@@ -1505,6 +1552,7 @@ function renderOneEntry(e,i,cont){
     <div class="etop">
       <span class="eid">#${e.id}</span>
       <span class="tbadge ${e.type||'unknown'}" id="badge-${i}">${(e.type||'?').toUpperCase()}</span>
+      ${e._aiCorrected?`<span style="font-size:9px;background:#ede9fe;color:#7c3aed;padding:2px 6px;border-radius:10px;font-weight:700">🧠 AI fixed</span>`:''}
       <span class="eamt ${ac}" id="eamt-${i}" style="margin-left:auto">${as}</span>
       <button onclick="delEntry(${i})" style="background:none;border:none;color:var(--red);font-size:18px;cursor:pointer;padding:0 3px;flex-shrink:0">✕</button>
     </div>
@@ -1514,7 +1562,7 @@ function renderOneEntry(e,i,cont){
     </div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-bottom:7px">
       <div class="fgrp"><label>Type</label>
-        <select onchange="_scanEntries[${i}].type=this.value;refreshEntry(${i})" style="font-size:13px;padding:8px">
+        <select onchange="trackEntryChange(${i},'type',_scanEntries[${i}].type,this.value);_scanEntries[${i}].type=this.value;refreshEntry(${i})" style="font-size:13px;padding:8px">
           <option value="sales" ${e.type==='sales'?'selected':''}>💚 Sales</option>
           <option value="expense" ${e.type==='expense'?'selected':''}>🔴 Expense</option>
           <option value="payment" ${e.type==='payment'?'selected':''}>🟡 Payment</option>
@@ -1572,9 +1620,28 @@ async function resolveDoubt(i){
 }
 
 function updateCBtn(){
-  const rem=_scanEntries.filter(e=>e.doubt).length, btn=document.getElementById('confirm-btn');
-  if(rem>0){btn.textContent=`⚠️ ${rem} doubt(s) pending — answer first`;btn.style.opacity='.5';btn.onclick=null;}
-  else{btn.textContent=`✓ Confirm & Save ${_scanEntries.length} Entries`;btn.style.opacity='1';btn.onclick=confirmScan;}
+  const rem=_scanEntries.filter(e=>e.doubt).length;
+  const btn=document.getElementById('confirm-btn');
+  if(!btn) return;
+  if(rem>0){
+    btn.textContent=`⚠️ ${rem} doubt(s) pending — answer first`;
+    btn.style.opacity='.5';
+    btn.disabled=true;
+  } else {
+    btn.textContent=`✓ Confirm & Save ${_scanEntries.length} Entries`;
+    btn.style.opacity='1';
+    btn.disabled=false;
+  }
+}
+
+// Static onclick handler - always works
+function handleConfirmBtn(){
+  const btn=document.getElementById('confirm-btn');
+  if(btn && btn.disabled) return;
+  const rem=_scanEntries.filter(e=>e.doubt).length;
+  if(rem>0){ toast('Answer all doubts first','warn'); return; }
+  if(_scanEntries.length===0){ toast('No entries to save','warn'); return; }
+  confirmScan();
 }
 
 // ═══════════════════════════════════════════
@@ -1582,90 +1649,104 @@ function updateCBtn(){
 // ═══════════════════════════════════════════
 async function confirmScan(){
   if(_scanEntries.some(e=>e.doubt)) return;
+  if(!_scanEntries.length){ toast('No entries to save','warn'); return; }
 
-  // Guard: ensure ME is ready
   if(!ME || !ME.uid){
-    toast('Not logged in. Please refresh and login again.','bad');
-    return;
+    toast('Not logged in. Please refresh.','bad'); return;
   }
 
   const BID = ME.businessId || ME.uid;
-  if(!BID){
-    toast('Session error. Please logout and login again.','bad');
-    return;
-  }
-
   const btn = document.getElementById('confirm-btn');
-  if(btn){ btn.disabled=true; btn.textContent='⏳ Saving to cloud...'; }
-  let s=0,e=0,p=0, saved=0;
+  if(btn){ btn.disabled=true; btn.textContent='⏳ Saving...'; }
+  let s=0,e=0,p=0, saved=0, localSaved=0;
+  const isOnline = navigator.onLine;
 
-  try{
-    for(const entry of _scanEntries){
-      const txData={
-        businessId: BID,
-        userId: ME.uid,
-        date:entry.date||today(),
-        shop:entry.shop||'s1',
-        type:entry.type||'expense',
-        amount:entry.amount||0,
-        desc:entry.desc||'',
-        category:entry.category||'',
-        billRef:entry.ref||'',
-        supplier:entry.supplier||null,
-        source:'scan',
-        by:ME.name,
-        createdMs:Date.now(),
-        createdAt:firebase.firestore.FieldValue.serverTimestamp()
-      };
-      await DB.collection('transactions').add(txData);
-      saved++;
+  // Build all tx data first
+  const allTxData = _scanEntries.map(entry=>({
+    _localId: 'loc_'+Date.now()+'_'+Math.random().toString(36).slice(2),
+    _collection: 'transactions',
+    businessId: BID,
+    userId: ME.uid,
+    date: entry.date||today(),
+    shop: entry.shop||'s1',
+    type: entry.type||'expense',
+    amount: entry.amount||0,
+    desc: entry.desc||'',
+    category: entry.category||'',
+    billRef: entry.ref||'',
+    supplier: entry.supplier||null,
+    source: 'scan',
+    by: ME.name||'user',
+    createdMs: Date.now(),
+    createdAt: firebase.firestore.FieldValue.serverTimestamp()
+  }));
 
-      if(entry.type==='sales') s+=entry.amount||0;
-      else if(entry.type==='expense') e+=entry.amount||0;
-      else if(entry.type==='payment'){
-        p+=entry.amount||0;
-        if(entry.supplier){
-          const sup=SUPS.find(x=>x.name===entry.supplier);
-          if(sup){
-            await DB.collection('sup_bills').add({
-              businessId: ME.businessId||ME.uid,
-              userId:ME.uid, supplierId:sup.id, supplierName:sup.name,
-              type:'payment', amount:entry.amount||0,
-              date:entry.date||today(), billRef:entry.ref||'',
-              note:'From OCR scan', createdAt:firebase.firestore.FieldValue.serverTimestamp()
-            });
+  // STEP 1: Save to localStorage FIRST (always works)
+  saveToLocalQueue(allTxData);
+  localSaved = allTxData.length;
+  toast(`💾 ${localSaved} entries saved locally!`,'ok');
+
+  // STEP 2: Try cloud save
+  if(isOnline){
+    if(btn) btn.textContent='☁️ Syncing to cloud...';
+    try{
+      for(const txData of allTxData){
+        const {_localId, _collection, ...fireData} = txData;
+        await DB.collection('transactions').add(fireData);
+        saved++;
+        if(txData.type==='sales') s+=txData.amount||0;
+        else if(txData.type==='expense') e+=txData.amount||0;
+        else if(txData.type==='payment'){
+          p+=txData.amount||0;
+          if(txData.supplier){
+            const sup=SUPS.find(x=>x.name===txData.supplier);
+            if(sup){
+              await DB.collection('sup_bills').add({
+                businessId:BID, userId:ME.uid,
+                supplierId:sup.id, supplierName:sup.name,
+                type:'payment', amount:txData.amount||0,
+                date:txData.date, billRef:txData.billRef||'',
+                note:'From OCR scan',
+                createdAt:firebase.firestore.FieldValue.serverTimestamp()
+              });
+            }
           }
         }
       }
+      // Clear from local queue since cloud saved
+      clearFromQueue(allTxData.map(x=>x._localId));
+      // Audit log
+      await DB.collection('audit').add({
+        businessId:BID, userId:ME.uid, by:ME.name||'user',
+        action:'scan_save', count:saved,
+        at:firebase.firestore.FieldValue.serverTimestamp()
+      });
+    }catch(cloudErr){
+      console.error('Cloud save failed, kept in local queue:', cloudErr);
+      // Local queue already has them — they'll sync when online
     }
-
-    // Audit
-    await DB.collection('audit').add({
-      businessId: ME.businessId||ME.uid,
-      userId:ME.uid, by:ME.name, action:'scan_save',
-      count:saved, at:firebase.firestore.FieldValue.serverTimestamp()
-    });
-
-    const net=s-e-p;
-    document.getElementById('done-msg').textContent=`✅ ${saved} entries saved to Firebase cloud!`;
-    document.getElementById('done-box').innerHTML=`
-      <div class="crow"><span>Entries Saved</span><span><b>${saved}</b></span></div>
-      <div class="crow"><span>Sales</span><span style="color:var(--green)">+₹${fmt(s)}</span></div>
-      <div class="crow"><span>Expenses</span><span style="color:var(--red)">-₹${fmt(e)}</span></div>
-      <div class="crow"><span>Payments</span><span style="color:var(--yellow)">-₹${fmt(p)}</span></div>
-      <div class="crow"><span>Net</span><span style="color:${net>=0?'var(--green)':'var(--red)'}">${net>=0?'+':''}₹${fmt(net)}</span></div>`;
-    showPhase('done'); setStep(4);
-    toast('✅ All entries saved!');
-  }catch(err){
-    console.error('Save error:',err);
-    if(btn){ btn.disabled=false; btn.textContent=`✓ Retry (${_scanEntries.length - saved} left)`; }
-    const errMsg = err.code==='permission-denied'
-      ? 'PERMISSION DENIED\n\nFix: Go to Firebase Console → Firestore → Rules\nPaste: allow read, write: if request.auth != null;\nClick Publish'
-      : err.message;
-    toast('Save failed: '+err.code,'bad');
-    alert('Save failed: '+errMsg+'\n\n('+saved+' of '+_scanEntries.length+' saved so far)');
+  } else {
+    toast('📴 Offline — saved locally, will sync when online','warn');
   }
-}
+
+  // Calculate totals from allTxData
+  allTxData.forEach(t=>{
+    if(t.type==='sales') s+=t.amount||0;
+    else if(t.type==='expense') e+=t.amount||0;
+    else if(t.type==='payment') p+=t.amount||0;
+  });
+  const net=s-e-p;
+  const cloudMsg = saved>0 ? `✅ ${saved} entries saved to cloud!` : `💾 ${localSaved} entries saved locally (will sync when online)`;
+  document.getElementById('done-msg').textContent=cloudMsg;
+  document.getElementById('done-box').innerHTML=`
+    <div class="crow"><span>Entries Saved</span><span><b>${localSaved}</b></span></div>
+    <div class="crow"><span>💾 Local Storage</span><span style="color:var(--green)">✅ Done</span></div>
+    <div class="crow"><span>☁️ Cloud Sync</span><span style="color:${saved>0?'var(--green)':'var(--yellow)'}">${saved>0?'✅ Done':'⏳ Pending (auto when online)'}</span></div>
+    <div class="crow"><span>Sales</span><span style="color:var(--green)">+₹${fmt(s)}</span></div>
+    <div class="crow"><span>Expenses</span><span style="color:var(--red)">-₹${fmt(e)}</span></div>
+    <div class="crow"><span>Net</span><span style="color:${net>=0?'var(--green)':'var(--red)'}">${net>=0?'+':''}₹${fmt(net)}</span></div>`;
+  showPhase('done'); setStep(4);
+
 
 // ═══════════════════════════════════════════
 // MANUAL ENTRY
@@ -2532,7 +2613,157 @@ function applyLang(){
 }
 
 // ═══════════════════════════════════════════
+// DUAL STORAGE — Local first, cloud sync
+// ═══════════════════════════════════════════
+const LOCAL_Q_KEY = 'slv_pending_txs';
+
+function saveToLocalQueue(items){
+  try{
+    const existing = JSON.parse(localStorage.getItem(LOCAL_Q_KEY)||'[]');
+    const merged = [...existing, ...items];
+    localStorage.setItem(LOCAL_Q_KEY, JSON.stringify(merged));
+    console.log('Saved to local queue:', items.length, 'items. Total pending:', merged.length);
+    return true;
+  }catch(e){ console.error('Local save failed:', e); return false; }
+}
+
+function getPendingQueue(){
+  try{ return JSON.parse(localStorage.getItem(LOCAL_Q_KEY)||'[]'); }
+  catch(e){ return []; }
+}
+
+function clearFromQueue(ids){
+  try{
+    const q = getPendingQueue().filter(x=>!ids.includes(x._localId));
+    localStorage.setItem(LOCAL_Q_KEY, JSON.stringify(q));
+  }catch(e){ console.error('Queue clear err:', e); }
+}
+
+async function syncPendingToCloud(){
+  const pending = getPendingQueue();
+  if(!pending.length) return;
+  if(!ME?.uid) return;
+  console.log('Syncing', pending.length, 'pending items to cloud...');
+  const synced = [];
+  for(const item of pending){
+    try{
+      const {_localId, _collection, ...data} = item;
+      await DB.collection(_collection).add(data);
+      synced.push(_localId);
+    }catch(e){ console.error('Sync item failed:', e); break; }
+  }
+  if(synced.length){
+    clearFromQueue(synced);
+    toast(`☁️ Synced ${synced.length} pending entries to cloud!`,'ok');
+    console.log('Synced:', synced.length);
+  }
+}
+
+// Auto-sync when online
+window.addEventListener('online', ()=>{
+  toast('🌐 Back online — syncing...','info');
+  setTimeout(syncPendingToCloud, 2000);
+});
+
+// Also sync on app start
+function syncOnStart(){
+  const pending = getPendingQueue();
+  if(pending.length > 0){
+    toast(`⏳ ${pending.length} entries pending sync...`,'warn');
+    setTimeout(syncPendingToCloud, 3000);
+  }
+}
+
+// ═══════════════════════════════════════════
+// AI LEARNING SYSTEM
+// ═══════════════════════════════════════════
+const AI_LEARN_KEY = 'slv_ai_corrections';
+const MAX_CORRECTIONS = 100;
+
+function saveCorrection(original, corrected){
+  try{
+    const corrections = JSON.parse(localStorage.getItem(AI_LEARN_KEY)||'[]');
+    // Avoid duplicates
+    const exists = corrections.find(x=>
+      x.origDesc===original.desc && x.origType===original.type && x.corrType===corrected.type
+    );
+    if(!exists){
+      corrections.unshift({
+        origDesc: original.desc,
+        origType: original.type,
+        corrType: corrected.type,
+        corrCategory: corrected.category,
+        corrSupplier: corrected.supplier,
+        savedAt: new Date().toISOString(),
+        count: 1
+      });
+      // Keep only latest 100
+      if(corrections.length > MAX_CORRECTIONS) corrections.pop();
+      localStorage.setItem(AI_LEARN_KEY, JSON.stringify(corrections));
+      console.log('AI learned correction:', original.desc, original.type, '->', corrected.type);
+    } else {
+      exists.count = (exists.count||1) + 1;
+      localStorage.setItem(AI_LEARN_KEY, JSON.stringify(corrections));
+    }
+  }catch(e){ console.error('Learning save err:', e); }
+}
+
+function getAICorrectionsPrompt(){
+  try{
+    const corrections = JSON.parse(localStorage.getItem(AI_LEARN_KEY)||'[]');
+    if(!corrections.length) return '';
+    const top = corrections.slice(0,20); // Top 20 most recent
+    const lines = top.map(x=>
+      `"${x.origDesc}" → type:${x.corrType}${x.corrCategory?', category:'+x.corrCategory:''} (corrected ${x.count} time${x.count>1?'s':''})`
+    );
+    return `
+
+=== USER CORRECTIONS (LEARN FROM THESE) ===
+Apply these corrections automatically:
+${lines.join('
+')}`;
+  }catch(e){ return ''; }
+}
+
+function applyAILearning(entries){
+  try{
+    const corrections = JSON.parse(localStorage.getItem(AI_LEARN_KEY)||'[]');
+    if(!corrections.length) return entries;
+    return entries.map(e=>{
+      const match = corrections.find(x=>
+        x.origDesc && e.desc &&
+        e.desc.toLowerCase().includes(x.origDesc.toLowerCase().substring(0,10))
+      );
+      if(match){
+        console.log('AI auto-correcting:', e.desc, 'from', e.type, 'to', match.corrType);
+        return {...e, type:match.corrType, category:match.corrCategory||e.category,
+          _aiCorrected:true, _origType:e.type};
+      }
+      return e;
+    });
+  }catch(e){ return entries; }
+}
+
+function showCorrectionCount(){
+  const corrections = JSON.parse(localStorage.getItem(AI_LEARN_KEY)||'[]');
+  return corrections.length;
+}
+
+// Track changes made during review (for AI learning)
+function trackEntryChange(idx, field, oldVal, newVal){
+  if(field==='type' && oldVal !== newVal){
+    const e = _scanEntries[idx];
+    saveCorrection(
+      {desc:e.desc, type:oldVal},
+      {type:newVal, category:e.category, supplier:e.supplier}
+    );
+    toast('🧠 AI learned: "'+e.desc+'" = '+newVal,'info');
+  }
+}
+
+// ═══════════════════════════════════════════
 // BOOT — Login shown immediately
+
 
 
 // ═══════════════════════════════════════════
